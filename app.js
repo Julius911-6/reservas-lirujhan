@@ -22,23 +22,25 @@ const db = getFirestore(app);
 const ADMIN_PHONE = "59172406904";
 const TOTAL_SEATS = 14;
 
-// Horarios fijos diarios
+// Horarios fijos diarios actualizados
 const DAILY_SCHEDULES = [
     '06:30 am',
     '07:00 am',
     '14:00 pm',
     '15:00 pm',
     '16:00 pm',
-    '17:30 pm'
+    '17:30 pm',
+    '18:00 pm' // Nuevo horario agregado
 ];
 
+// Rutas y precios actualizados
 const ROUTES_DATA = {
     'Pozo Cavado': [
-        { name: 'Ramaditas', price: 16 },
+        { name: 'Ramaditas', price: 20 },
         { name: 'Bella Vista', price: 25 },
         { name: 'Catavi K', price: 30 },
         { name: 'Tambillo', price: 35 },
-        { name: 'Pista/Awaquiza', price: 40 },
+        { name: 'Pista o Awaquiza', price: 40 },
         { name: 'Pozo Cavado', price: 40 }
     ],
     'Todo Santos': [
@@ -364,14 +366,14 @@ els.pBtnReserve.addEventListener('click', async () => {
 
         const seatsTxt = state.selectedSeats.join(", ");
         
-        // --- NUEVO: GENERACIÓN DEL PDF ---
+        // --- GENERACIÓN DEL PDF CON DIRECCIONES ---
         try {
             const { jsPDF } = window.jspdf;
             const docPDF = new jsPDF();
 
             // Diseño básico del boleto
             docPDF.setFontSize(22);
-            docPDF.setTextColor(234, 88, 12); // Color Naranja (nuestro color corporativo)
+            docPDF.setTextColor(234, 88, 12); // Color Naranja
             docPDF.text("TRANSPORTE LIRUJHAN", 105, 20, { align: "center" });
 
             docPDF.setFontSize(16);
@@ -390,13 +392,23 @@ els.pBtnReserve.addEventListener('click', async () => {
             docPDF.setFont(undefined, 'bold');
             docPDF.text(`Total a Pagar: ${total} Bs`, 20, 115);
 
+            // Información de Oficinas (Actualización solicitada)
             docPDF.setFontSize(10);
             docPDF.setFont(undefined, 'normal');
-            docPDF.setTextColor(130, 130, 130);
-            docPDF.text("Este documento es su comprobante de reserva.", 105, 135, { align: "center" });
-            docPDF.text("Por favor preséntelo (digital o impreso) al abordar.", 105, 142, { align: "center" });
+            docPDF.setTextColor(80, 80, 80); // Un gris un poco más oscuro para que sea legible
+            
+            docPDF.text("Dirección ofi. Uyuni: Litoral entre Avaroa-Ayacucho frente a la pasarela", 105, 128, { align: "center" });
+            docPDF.text("Cel. 74231416 o 72406904", 105, 134, { align: "center" });
 
-            // Descarga automática en la computadora/celular
+            docPDF.text("Dirección Ofi. Pozo Cavado: Calle Cochabamba entre calle Potosí", 105, 142, { align: "center" });
+            docPDF.text("Cel. 72406922 o 72406904", 105, 148, { align: "center" });
+
+            // Mensaje de pie de página
+            docPDF.setTextColor(130, 130, 130);
+            docPDF.text("Este documento es su comprobante de reserva.", 105, 160, { align: "center" });
+            docPDF.text("Por favor preséntelo (digital o impreso) al abordar.", 105, 166, { align: "center" });
+
+            // Descarga automática
             docPDF.save(`Boleto_Lirujhan_${name.replace(/\s+/g, '_')}.pdf`);
         } catch(e) {
             console.error("Error al generar el PDF del boleto:", e);

@@ -6,14 +6,33 @@
     <title>Transporte LIRUJHAN - Reservas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
         }
 
+        /* Ocultar checkbox original */
+        .seat-checkbox {
+            display: none;
+        }
+
+        /* Diseño del asiento libre */
+        .seat-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 3rem;
+            border-radius: 0.5rem;
+            border: 2px solid #22c55e;
+            background-color: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
         /* Cambia el color del asiento cuando lo seleccionas */
-        .seat-checkbox:checked + div {
+        .seat-checkbox:checked + .seat-label {
             background-color: #3b82f6; 
             color: white;
             border-color: #2563eb; 
@@ -26,32 +45,36 @@
             border-color: #9ca3af !important; 
             cursor: not-allowed;
             text-decoration: line-through;
+            pointer-events: none;
         }
 
-        /* Oculta los checkboxes reales para usar labels personalizados */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            border: 0;
+        /* La bolita naranja que da vueltas cuando está cargando */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f97316; 
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
         }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
 
-    <!-- CABECERA -->
     <header class="bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg sticky top-0 z-50">
         <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
                 <h1 class="text-xl font-bold tracking-tight">Trans. LIRUJHAN</h1>
             </div>
+            <div id="connection-status" class="hidden md:block px-2 py-1 bg-yellow-500/20 text-yellow-100 text-xs rounded border border-yellow-400/50">Conectando...</div>
             <nav class="flex space-x-4">
-                <button id="nav-passenger" class="px-3 py-2 bg-white/30 rounded-lg transition text-sm font-semibold">Pasajero</button>
+                <button id="nav-passenger" class="px-3 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition text-sm font-semibold">Pasajero</button>
                 <button id="nav-admin" class="px-3 py-2 bg-black/20 rounded-lg hover:bg-black/30 transition text-sm font-semibold">Admin (CRM)</button>
             </nav>
         </div>
@@ -59,14 +82,14 @@
 
     <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
         
-        <!-- VISTA DE PASAJERO -->
+        <!-- VISTA PASAJERO -->
         <section id="view-passenger" class="max-w-md mx-auto space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">Reserva tu Asiento</h2>
                 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Ruta</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ruta Principal</label>
                         <select id="p-route" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 bg-gray-50 border outline-none">
                             <option value="">Selecciona una ruta...</option>
                             <option value="Pozo Cavado">Hacia Pozo Cavado</option>
@@ -82,7 +105,27 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Destino Final</label>
                         <select id="p-destination" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none disabled:opacity-50" disabled>
-                            <option value="">Primero selecciona una ruta...</option>
+                            <option value="">Primero selecciona un horario...</option>
+                            <optgroup label="Rutas">
+                                <option value="Ramaditas_16">Ramaditas (16 Bs)</option>
+                                <option value="Bella Vista_25">Bella Vista (25 Bs)</option>
+                                <option value="Catavi K_30">Catavi K (30 Bs)</option>
+                                <option value="Tambillo_35">Tambillo (35 Bs)</option>
+                                <option value="Pista o Awaquiza_40">Pista o Awaquiza (40 Bs)</option>
+                                <option value="Pozo Cavado_40">Pozo Cavado (40 Bs)</option>
+                            </optgroup>
+                            <optgroup label="Otras Rutas">
+                                <option value="Vila Vila_25">Vila Vila (25 Bs)</option>
+                                <option value="San Cristobal_30">San Cristobal (30 Bs)</option>
+                                <option value="Culpina K_35">Culpina K (35 Bs)</option>
+                                <option value="Serena_45">Serena (45 Bs)</option>
+                                <option value="Vilama_50">Vilama (50 Bs)</option>
+                                <option value="Agua de Castilla_55">Agua de Castilla (55 Bs)</option>
+                                <option value="Cerro Gordo_60">Cerro Gordo (60 Bs)</option>
+                                <option value="Mejillones_70">Mejillones (70 Bs)</option>
+                                <option value="Todo Santos_80">Todo Santos (80 Bs)</option>
+                                <option value="Uyuni_40">Uyuni (40 Bs)</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -92,62 +135,58 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold text-gray-800">Croquis del Minibus</h3>
                     <div class="flex items-center space-x-2 text-xs text-gray-500">
-                        <span class="w-3 h-3 rounded-full bg-green-50 border border-green-500 inline-block"></span> Libre
+                        <span class="w-3 h-3 rounded-full bg-green-100 border border-green-500 inline-block"></span> Libre
                         <span class="w-3 h-3 rounded-full bg-gray-300 border border-gray-400 inline-block ml-2"></span> Ocupado
-                        <span class="w-3 h-3 rounded-full bg-blue-500 inline-block ml-2"></span> Tu Selección
+                        <span class="w-3 h-3 rounded-full bg-blue-500 inline-block ml-2"></span> Tú
                     </div>
                 </div>
                 
-                <!-- Croquis interactivo -->
                 <div class="bg-gray-100 p-4 rounded-xl border-2 border-gray-200 relative">
-                    <!-- Icono conductor -->
-                    <div class="absolute top-4 left-6 text-gray-400 flex flex-col items-center">
+                    <div class="absolute top-4 left-6 text-gray-400">
+                        <!-- Icono de conductor -->
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <span class="text-[10px] mt-1 font-bold">Chofer</span>
                     </div>
-                    <div id="seat-grid" class="grid grid-cols-4 gap-3 mt-16 mb-4 max-w-[280px] mx-auto justify-items-center">
-                        <!-- Asientos generados por JS -->
+                    <!-- Grid de 14 asientos (típico minibus) -->
+                    <div id="seat-grid" class="grid grid-cols-3 gap-3 mt-12 mb-4 max-w-[250px] mx-auto">
+                        <!-- Los asientos se generan con JS -->
                     </div>
                 </div>
 
                 <div class="mt-6 space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Pasajero(s)</label>
-                        <input type="text" id="p-name" placeholder="Ej. Juan Pérez" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:ring-1 focus:ring-orange-500">
+                        <input type="text" id="p-name" placeholder="Ej. Juan Pérez" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Carnet de Identidad (CI)</label>
-                        <input type="text" id="p-ci" placeholder="Ej. 1234567" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:ring-1 focus:ring-orange-500">
+                        <input type="text" id="p-ci" placeholder="Ej. 1234567" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Celular (WhatsApp)</label>
-                        <input type="number" id="p-phone" placeholder="Ej. 71234567" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:ring-1 focus:ring-orange-500">
-                    </div>
+                    <!-- Campo de celular eliminado a petición -->
                     <div class="bg-orange-50 p-4 rounded-lg flex justify-between items-center border border-orange-100">
-                        <span class="text-gray-700 font-medium">Total a pagar:</span>
+                        <span class="text-gray-700">Total a pagar:</span>
                         <span id="p-total" class="text-2xl font-bold text-orange-600">0 Bs</span>
                     </div>
-                    <button id="p-btn-reserve" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button id="p-btn-reserve" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 flex justify-center items-center">
                         Pagar y Reservar
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- VISTA ADMIN: LOGIN -->
+        <!-- LOGIN ADMIN -->
         <section id="view-admin-login" class="max-w-md mx-auto hidden">
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center mt-10">
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
                 <h2 class="text-2xl font-bold mb-2 text-gray-800">Acceso CRM</h2>
                 <div class="space-y-4 mt-6">
-                    <input type="email" id="a-email" placeholder="Correo electrónico" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none focus:ring-1 focus:ring-gray-800" value="admin1@lirujhan.com">
-                    <input type="password" id="a-pass" placeholder="Contraseña" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none focus:ring-1 focus:ring-gray-800" value="lirujhan2026">
-                    <button id="btn-login" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition duration-200">Ingresar</button>
-                    <p class="text-xs text-gray-400">Credenciales por defecto precargadas para probar.</p>
+                    <input type="email" id="a-email" placeholder="Correo electrónico del administrador" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
+                    <input type="password" id="a-pass" placeholder="Contraseña" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
+                    <button id="btn-login" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition duration-200">Ingresar como Admin</button>
+                    <p class="text-xs text-gray-400">Ingresa con el correo registrado en tu panel de Firebase</p>
                 </div>
             </div>
         </section>
 
-        <!-- VISTA ADMIN: DASHBOARD -->
+        <!-- PANEL ADMIN -->
         <section id="view-admin-dashboard" class="hidden space-y-6">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-gray-800">Panel de Control CRM</h2>
@@ -156,11 +195,11 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 h-fit">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Nuevo Horario (Opcional)</h3>
-                    <p class="text-xs text-gray-500 mb-4">Los horarios fijos diarios ya están activos. Usa esto solo para crear salidas extra.</p>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Nuevo Horario (Extra)</h3>
+                    <p class="text-xs text-gray-500 mb-4">Los horarios fijos diarios ya están activos. Usa esto solo para salidas especiales.</p>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruta</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruta Principal</label>
                             <select id="new-route" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
                                 <option value="Pozo Cavado">Pozo Cavado</option>
                                 <option value="Todo Santos">Todo Santos</option>
@@ -175,37 +214,26 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 md:col-span-2">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-4 space-y-3 sm:space-y-0">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
                         <h3 class="text-lg font-bold text-gray-800">Lista de Pasajeros</h3>
-                        <select id="admin-schedule-filter" class="border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none text-sm w-full sm:w-auto focus:ring-1 focus:ring-blue-500">
+                        <select id="admin-schedule-filter" class="border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none text-sm w-auto">
                             <option value="">Seleccionar Horario...</option>
                         </select>
                     </div>
-                    
-                    <!-- Resumen del Viaje -->
-                    <div id="admin-trip-summary" class="hidden mb-4 p-3 bg-gray-50 rounded-lg border text-sm grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div><span class="text-gray-500 block text-xs">Ocupación</span><span id="summary-seats" class="font-bold">0/14</span></div>
-                        <div><span class="text-gray-500 block text-xs">Ingresos</span><span id="summary-revenue" class="font-bold text-green-600">0 Bs</span></div>
-                        <div><span class="text-gray-500 block text-xs">Confirmados</span><span id="summary-confirmed" class="font-bold">0</span></div>
-                        <div><span class="text-gray-500 block text-xs">Pendientes</span><span id="summary-pending" class="font-bold text-orange-500">0</span></div>
-                    </div>
-
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-gray-100 text-gray-600 rounded-t-lg">
+                            <thead class="bg-gray-50 text-gray-600">
                                 <tr>
-                                    <th class="px-4 py-3 rounded-tl-lg">Asientos</th>
+                                    <th class="px-4 py-3">Asientos</th>
                                     <th class="px-4 py-3">Pasajero</th>
                                     <th class="px-4 py-3">CI</th>
                                     <th class="px-4 py-3">Destino</th>
                                     <th class="px-4 py-3">Total</th>
                                     <th class="px-4 py-3">Estado</th>
-                                    <th class="px-4 py-3 rounded-tr-lg">Acciones</th>
+                                    <th class="px-4 py-3">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="manifest-body" class="divide-y divide-gray-100">
-                                <tr><td colspan="7" class="text-center py-8 text-gray-400">Seleccione un horario para ver los pasajeros</td></tr>
-                            </tbody>
+                            <tbody id="manifest-body"></tbody>
                         </table>
                     </div>
                 </div>
@@ -213,9 +241,9 @@
         </section>
     </main>
 
-    <!-- MODAL DE MENSAJES CUSTOMIZADO -->
-    <div id="custom-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all scale-95 opacity-0" id="modal-content">
+    <!-- MODAL DE MENSAJES -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all" id="modal-content">
             <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
             <p id="modal-msg" class="text-gray-600 mb-6"></p>
             <div class="flex justify-end space-x-3" id="modal-actions">
@@ -225,595 +253,503 @@
         </div>
     </div>
 
-    <!-- MODAL DE QR DE PAGO -->
-    <div id="qr-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
+    <!-- MODAL DE QR -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center">
             <h3 class="text-xl font-bold text-gray-900 mb-2">Pago por QR</h3>
-            <p class="text-sm text-gray-600 mb-4">Escanea el código para pagar <span id="qr-total" class="font-bold text-orange-600 text-lg"></span></p>
+            <p class="text-sm text-gray-600 mb-4">Escanea el código para pagar <span id="qr-total" class="font-bold text-orange-600"></span></p>
             
-            <!-- Usamos un placeholder en caso de que qr-pago.png no exista en el servidor final -->
-            <img src="qr-pago.png" onerror="this.src='https://placehold.co/400x400/FFF/000?text=QR+PAGO+LIRUJHAN'" alt="QR de Pago Lirujhan" class="w-48 h-48 mx-auto mb-4 border-2 border-gray-100 rounded-xl shadow-sm object-contain bg-white">
+            <!-- Usando un placeholder visualmente claro por la falta de la imagen local -->
+            <div class="w-48 h-48 mx-auto mb-4 border rounded-lg shadow-sm bg-gray-100 flex items-center justify-center text-gray-400">
+                [Imagen de QR aquí]
+            </div>
             
-            <p class="text-xs text-gray-700 mb-6 bg-yellow-100 p-3 rounded-lg border border-yellow-200 text-left">
-                <strong>⚠️ IMPORTANTE:</strong> Luego de escanear y pagar, haz clic en el botón verde para confirmar tu compra y bloquear tus asientos.
+            <p class="text-xs text-gray-500 mb-6 bg-yellow-50 p-2 rounded border border-yellow-100">
+                ⚠️ IMPORTANTE: Al confirmar, tu reserva se guardará en nuestro sistema web.
             </p>
             
             <div class="flex flex-col space-y-3">
                 <button id="qr-btn-confirm" class="w-full bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold py-3 transition shadow-lg flex justify-center items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    Ya pagué, Confirmar Reserva
+                    Ya pagué, reservar asientos
                 </button>
-                <button id="qr-btn-cancel" class="w-full text-gray-500 hover:bg-gray-100 rounded-lg font-medium py-2 transition">Cancelar</button>
+                <button id="qr-btn-cancel" class="w-full text-gray-500 hover:bg-gray-100 rounded-lg font-medium py-2 transition">Volver atrás</button>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPTS DE LA APLICACION -->
-    <script>
-        /**
-         * ESTADO GLOBAL Y DATOS MOCK (Base de datos en memoria)
-         * En un entorno real, estos arreglos se reemplazarían con Firestore.
-         */
-        const ROUTES_DATA = {
-            "Pozo Cavado": {
-                destinations: [
-                    { name: "Centro de Pozo Cavado", price: 30 },
-                    { name: "Desvío Comunidad", price: 25 },
-                    { name: "Cruce principal", price: 20 }
-                ]
-            },
-            "Todo Santos": {
-                destinations: [
-                    { name: "Todo Santos Principal", price: 40 },
-                    { name: "Tranca Norte", price: 35 },
-                    { name: "Mercado Central", price: 30 }
-                ]
-            }
-        };
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        const DAILY_SCHEDULES = ["06:00", "08:30", "11:00", "14:00", "18:00"];
+        // === CONFIGURACIÓN FIREBASE ===
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // Datos reales proporcionados
+            firebaseConfig = {
+                apiKey: "AIzaSyCVKYWyf38Wa6t7unYKfasGBG3N39mq2gA",
+                authDomain: "lirujhan-app.firebaseapp.com",
+                projectId: "lirujhan-app",
+                storageBucket: "lirujhan-app.firebasestorage.app",
+                messagingSenderId: "747445110980",
+                appId: "1:747445110980:web:69ce8410d0dbfe50f3e191",
+                measurementId: "G-XHVY58GF5Z"
+            };
+        }
 
-        let state = {
-            schedules: [],  // Horarios extra creados por admin
-            tickets: [],    // Todas las reservas (boletos)
-            
-            // Estado del Pasajero
-            selectedRoute: "",
-            selectedScheduleId: "",
-            selectedDestination: "",
-            selectedPrice: 0,
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Función auxiliar para rutas de Firebase compatibles
+        const isCanvas = typeof __app_id !== 'undefined';
+        const appId = isCanvas ? __app_id : 'lirujhan-app';
+        function getColRef(colName) {
+            if (isCanvas) return collection(db, 'artifacts', appId, 'public', 'data', colName);
+            return collection(db, colName); // En tu Firebase real usará colecciones en la raíz
+        }
+
+        // === NUEVOS HORARIOS SOLICITADOS ===
+        const DAILY_SCHEDULES = ['06:30', '07:00', '14:00', '15:00', '16:00', '17:30', '18:00'];
+        const TOTAL_SEATS = 14; 
+
+        // === ESTADO GLOBAL ===
+        const state = {
+            schedules: [],
+            tickets: [],
+            selectedRoute: '',
+            selectedScheduleId: '',
+            selectedDestination: '',
+            destinationPrice: 0,
             selectedSeats: [],
-            
-            // Estado del Admin
-            adminSelectedScheduleId: "",
-            isAdminLoggedIn: false
+            adminSelectedScheduleId: '',
+            user: null,
+            isAdmin: false
         };
 
-        // Utilidades de formato
-        const formatDate = (dateString) => {
-            const date = new Date(dateString);
-            return date.toLocaleString('es-BO', { day:'2-digit', month:'2-digit', hour: '2-digit', minute:'2-digit' });
-        };
-        const generateId = () => Math.random().toString(36).substr(2, 9);
-
-        // Referencias a elementos del DOM
+        // === REFERENCIAS DOM ===
         const els = {
-            // Navegación
-            navPassenger: document.getElementById('nav-passenger'),
-            navAdmin: document.getElementById('nav-admin'),
             viewPassenger: document.getElementById('view-passenger'),
             viewAdminLogin: document.getElementById('view-admin-login'),
-            viewAdminDashboard: document.getElementById('view-admin-dashboard'),
-            
-            // Pasajero
+            viewAdminDash: document.getElementById('view-admin-dashboard'),
+            navPassenger: document.getElementById('nav-passenger'),
+            navAdmin: document.getElementById('nav-admin'),
+            connectionStatus: document.getElementById('connection-status'),
+
             pRoute: document.getElementById('p-route'),
             pSchedule: document.getElementById('p-schedule'),
             pDestination: document.getElementById('p-destination'),
-            pSeatMapContainer: document.getElementById('p-seat-map-container'),
+            seatMapContainer: document.getElementById('p-seat-map-container'),
             seatGrid: document.getElementById('seat-grid'),
             pName: document.getElementById('p-name'),
             pCi: document.getElementById('p-ci'),
-            pPhone: document.getElementById('p-phone'),
             pTotal: document.getElementById('p-total'),
-            pBtnReserve: document.getElementById('p-btn-reserve'),
-            
-            // Modal QR
-            qrModal: document.getElementById('qr-modal'),
-            qrTotal: document.getElementById('qr-total'),
-            qrBtnConfirm: document.getElementById('qr-btn-confirm'),
-            qrBtnCancel: document.getElementById('qr-btn-cancel'),
-            
-            // Admin CRM
-            aEmail: document.getElementById('a-email'),
-            aPass: document.getElementById('a-pass'),
+            btnReserve: document.getElementById('p-btn-reserve'),
+
+            adminEmail: document.getElementById('a-email'),
+            adminPass: document.getElementById('a-pass'),
             btnLogin: document.getElementById('btn-login'),
             btnLogout: document.getElementById('btn-logout'),
+            adminScheduleFilter: document.getElementById('admin-schedule-filter'),
+            manifestBody: document.getElementById('manifest-body'),
             newRoute: document.getElementById('new-route'),
             newDatetime: document.getElementById('new-datetime'),
             btnCreateSchedule: document.getElementById('btn-create-schedule'),
-            adminScheduleFilter: document.getElementById('admin-schedule-filter'),
-            manifestBody: document.getElementById('manifest-body')
+
+            qrModal: document.getElementById('qr-modal'),
+            qrTotal: document.getElementById('qr-total'),
+            qrBtnConfirm: document.getElementById('qr-btn-confirm'),
+            qrBtnCancel: document.getElementById('qr-btn-cancel')
         };
 
-        // ==========================================
-        // 1. SISTEMA DE MODALES Y ALERTAS
-        // ==========================================
-        function showModal(title, message, showCancel = false, onOk = null) {
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-msg').textContent = message;
-            
-            const btnCancel = document.getElementById('modal-btn-cancel');
-            const btnOk = document.getElementById('modal-btn-ok');
-            
-            if(showCancel) btnCancel.classList.remove('hidden');
-            else btnCancel.classList.add('hidden');
-            
-            // Limpiar eventos anteriores clonando botones
-            const newBtnOk = btnOk.cloneNode(true);
-            btnOk.parentNode.replaceChild(newBtnOk, btnOk);
-            newBtnOk.addEventListener('click', () => {
-                closeModal();
-                if(onOk) onOk();
+        // === INICIALIZACIÓN ===
+        async function init() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    // Si el usuario no está logueado, ingresa como anónimo automáticamente
+                    if(!auth.currentUser) {
+                        await signInAnonymously(auth);
+                    }
+                }
+            } catch (error) {
+                console.error("Error auth:", error);
+                updateConnectionStatus('error_auth');
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                state.user = user;
+                // Si el usuario no es anónimo, significa que es el admin (correo/contraseña)
+                state.isAdmin = !user.isAnonymous; 
+                setupRealtimeListeners();
+                
+                // Redirigir según el rol si estamos recargando la página
+                if (state.isAdmin && !els.viewAdminDash.classList.contains('hidden') === false) {
+                     switchView('admin-dash');
+                }
+            }
+        });
+
+        // === LISTENERS EN TIEMPO REAL ===
+        function setupRealtimeListeners() {
+            onSnapshot(getColRef('horarios'), (snapshot) => {
+                state.schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                updateScheduleDropdowns();
+                updateConnectionStatus('success');
+            }, (error) => {
+                console.error("Error horarios:", error);
+                updateConnectionStatus('error_rules');
             });
 
-            const newBtnCancel = btnCancel.cloneNode(true);
-            btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
-            newBtnCancel.addEventListener('click', closeModal);
-
-            const modal = document.getElementById('custom-modal');
-            const modalContent = document.getElementById('modal-content');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modalContent.classList.remove('scale-95', 'opacity-0');
-                modalContent.classList.add('scale-100', 'opacity-100');
-            }, 10);
+            onSnapshot(getColRef('boletos'), (snapshot) => {
+                state.tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSeatMap();
+                renderManifest();
+                updateScheduleDropdowns(); 
+            }, (error) => {
+                console.error("Error boletos:", error);
+                updateConnectionStatus('error_rules');
+            });
         }
 
-        function closeModal() {
-            const modal = document.getElementById('custom-modal');
-            const modalContent = document.getElementById('modal-content');
-            modalContent.classList.remove('scale-100', 'opacity-100');
-            modalContent.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => modal.classList.add('hidden'), 200);
+        // === INDICADOR DE CONEXIÓN ===
+        function updateConnectionStatus(status) {
+            if (!els.connectionStatus) return;
+            if (status === 'success') {
+                els.connectionStatus.innerText = '🟢 Conectado';
+                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-green-500/20 text-green-100 text-xs rounded border border-green-400/50';
+            } else if (status === 'error_rules') {
+                els.connectionStatus.innerText = '🔴 Error Base Datos';
+                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-red-500/20 text-red-100 text-xs rounded border border-red-400/50';
+            } else if (status === 'error_auth') {
+                els.connectionStatus.innerText = '🔴 Error Autenticación';
+                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-red-500/20 text-red-100 text-xs rounded border border-red-400/50';
+            }
         }
 
-        // ==========================================
-        // 2. NAVEGACIÓN Y VISTAS
-        // ==========================================
+        // === LÓGICA DE INTERFAZ ===
+        function formatDate(isoString) {
+            const d = new Date(isoString);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
         function switchView(view) {
             els.viewPassenger.classList.add('hidden');
             els.viewAdminLogin.classList.add('hidden');
-            els.viewAdminDashboard.classList.add('hidden');
+            els.viewAdminDash.classList.add('hidden');
             
-            els.navPassenger.className = "px-3 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition text-sm font-semibold";
-            els.navAdmin.className = "px-3 py-2 bg-black/20 rounded-lg hover:bg-black/30 transition text-sm font-semibold";
-
-            if (view === 'passenger') {
-                els.viewPassenger.classList.remove('hidden');
-                els.navPassenger.classList.add('bg-white/40'); // active state
-            } else if (view === 'admin') {
-                if (state.isAdminLoggedIn) {
-                    els.viewAdminDashboard.classList.remove('hidden');
-                    updateScheduleDropdowns();
-                    renderManifest();
-                } else {
-                    els.viewAdminLogin.classList.remove('hidden');
-                }
-                els.navAdmin.classList.add('bg-black/40'); // active state
-            }
+            if (view === 'passenger') els.viewPassenger.classList.remove('hidden');
+            if (view === 'admin-login') els.viewAdminLogin.classList.remove('hidden');
+            if (view === 'admin-dash') els.viewAdminDash.classList.remove('hidden');
         }
 
         els.navPassenger.addEventListener('click', () => switchView('passenger'));
-        els.navAdmin.addEventListener('click', () => switchView('admin'));
+        els.navAdmin.addEventListener('click', () => switchView(state.user && state.isAdmin ? 'admin-dash' : 'admin-login'));
 
-        // ==========================================
-        // 3. LÓGICA DEL PASAJERO
-        // ==========================================
-
-        // Cambio de Ruta Principal
+        // === PASAJERO: EVENTOS ===
         els.pRoute.addEventListener('change', (e) => {
             state.selectedRoute = e.target.value;
-            state.selectedScheduleId = "";
-            state.selectedDestination = "";
-            state.selectedPrice = 0;
-            state.selectedSeats = [];
-            
-            if (state.selectedRoute) {
-                // Llenar Destinos
-                const dests = ROUTES_DATA[state.selectedRoute].destinations;
-                els.pDestination.innerHTML = '<option value="">Selecciona tu destino final...</option>' + 
-                    dests.map(d => `<option value="${d.name}" data-price="${d.price}">${d.name} - ${d.price} Bs</option>`).join('');
-                els.pDestination.disabled = false;
-            } else {
-                els.pDestination.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
-                els.pDestination.disabled = true;
-            }
-            
+            els.pSchedule.disabled = !state.selectedRoute;
+            els.pDestination.disabled = true;
+            els.pDestination.value = "";
+            els.seatMapContainer.classList.add('hidden');
             updateScheduleDropdowns();
-            renderSeatMap();
-            updateTotal();
         });
 
-        // Cambio de Destino Final
-        els.pDestination.addEventListener('change', (e) => {
-            state.selectedDestination = e.target.value;
-            if(state.selectedDestination) {
-                const selectedOption = e.target.options[e.target.selectedIndex];
-                state.selectedPrice = parseFloat(selectedOption.getAttribute('data-price'));
-            } else {
-                state.selectedPrice = 0;
-            }
-            updateTotal();
-        });
-
-        // Cambio de Horario
         els.pSchedule.addEventListener('change', (e) => {
             state.selectedScheduleId = e.target.value;
-            state.selectedSeats = []; // Reset seats on schedule change
+            els.pDestination.disabled = !state.selectedScheduleId;
+            els.pDestination.value = "";
+            els.seatMapContainer.classList.add('hidden');
             renderSeatMap();
+        });
+
+        els.pDestination.addEventListener('change', (e) => {
+            if(!e.target.value) {
+                els.seatMapContainer.classList.add('hidden');
+                return;
+            }
+            
+            const [destName, price] = e.target.value.split('_');
+            state.selectedDestination = destName;
+            state.destinationPrice = parseInt(price);
+            
+            els.seatMapContainer.classList.remove('hidden');
             updateTotal();
         });
 
+        // === LÓGICA DE DESPLEGABLES ===
         function updateScheduleDropdowns() {
-            // --- DROPDOWN PASAJERO ---
+            // 1. Pasajero
             if (!state.selectedRoute) {
                 els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
-                els.pSchedule.disabled = true;
             } else {
-                els.pSchedule.disabled = false;
                 const todayStr = new Date().toISOString().split('T')[0];
                 const fixedOptions = DAILY_SCHEDULES.map(time => {
-                    return `<option value="FIJO_${state.selectedRoute}_${todayStr}_${time}">${time} (Salida Fija Hoy)</option>`;
+                    return `<option value="FIJO_${state.selectedRoute}_${todayStr}_${time}">${time} (Hoy)</option>`;
                 });
 
                 const now = new Date();
-                const adminOptions = state.schedules
+                const extraOptions = state.schedules
                     .filter(s => s.route === state.selectedRoute && new Date(s.datetime) >= now)
-                    .map(s => `<option value="${s.id}">${formatDate(s.datetime)} (Viaje Extra)</option>`);
+                    .map(s => `<option value="${s.id}">${formatDate(s.datetime)} (Extra)</option>`);
                 
-                els.pSchedule.innerHTML = '<option value="">Selecciona un horario disponible...</option>' + fixedOptions.join('') + adminOptions.join('');
-                els.pSchedule.value = state.selectedScheduleId;
+                els.pSchedule.innerHTML = '<option value="">Selecciona un horario...</option>' + fixedOptions.join('') + extraOptions.join('');
+                if(state.selectedScheduleId) els.pSchedule.value = state.selectedScheduleId;
             }
 
-            // --- DROPDOWN ADMIN CRM ---
+            // 2. Administrador
             const ticketScheduleIds = [...new Set(state.tickets.map(t => t.scheduleId))];
-            const aOptions = [];
             
-            // 1. Horarios con reservas
-            ticketScheduleIds.forEach(id => {
+            const aOptions = ticketScheduleIds.map(id => {
                 let label = id;
                 if (id.startsWith('FIJO_')) {
                     const parts = id.split('_'); 
-                    label = `${parts[1]} - ${parts[3]} (Hoy)`;
+                    label = `${parts[1]} - ${parts[2]} a las ${parts[3]}`;
                 } else {
                     const s = state.schedules.find(x => x.id === id);
                     if(s) label = `${s.route} - ${formatDate(s.datetime)}`;
                 }
-                aOptions.push(`<option value="${id}">🔵 ${label} (Con pasajeros)</option>`);
+                return `<option value="${id}">🔵 ${label} (Con reservas)</option>`;
             });
 
-            // 2. Horarios fijos de HOY vacíos
             const todayStr = new Date().toISOString().split('T')[0];
-            Object.keys(ROUTES_DATA).forEach(route => {
+            ['Pozo Cavado', 'Todo Santos'].forEach(route => {
                 DAILY_SCHEDULES.forEach(time => {
                     const fixedId = `FIJO_${route}_${todayStr}_${time}`;
                     if (!ticketScheduleIds.includes(fixedId)) {
-                        aOptions.push(`<option value="${fixedId}">⚪ ${route} - ${time} (Vacío)</option>`);
+                        aOptions.push(`<option value="${fixedId}">⚪ ${route} - Hoy a las ${time} (Vacío)</option>`);
                     }
                 });
             });
 
-            // 3. Horarios extras creados vacíos
             state.schedules.forEach(s => {
                 if (!ticketScheduleIds.includes(s.id)) {
-                    aOptions.push(`<option value="${s.id}">⚪ ${s.route} - ${formatDate(s.datetime)} (Extra Vacío)</option>`);
+                    aOptions.push(`<option value="${s.id}">⚪ ${s.route} - ${formatDate(s.datetime)} (Extra - Vacío)</option>`);
                 }
             });
 
-            els.adminScheduleFilter.innerHTML = '<option value="">Seleccione un horario para ver pasajeros...</option>' + aOptions.join('');
-            
-            // Mantener selección si aún existe
-            if(state.adminSelectedScheduleId && els.adminScheduleFilter.querySelector(`option[value="${state.adminSelectedScheduleId}"]`)) {
-                els.adminScheduleFilter.value = state.adminSelectedScheduleId;
-            } else {
-                state.adminSelectedScheduleId = "";
-                els.adminScheduleFilter.value = "";
-            }
+            els.adminScheduleFilter.innerHTML = '<option value="">Seleccione un horario...</option>' + aOptions.join('');
+            if(state.adminSelectedScheduleId) els.adminScheduleFilter.value = state.adminSelectedScheduleId;
         }
 
+        // === CROQUIS DE ASIENTOS ===
         function renderSeatMap() {
-            if (!state.selectedScheduleId || !state.selectedRoute) {
-                els.pSeatMapContainer.classList.add('hidden');
-                return;
-            }
-            els.pSeatMapContainer.classList.remove('hidden');
+            if (!state.selectedScheduleId) return;
+            
+            const occupiedSeats = state.tickets
+                .filter(t => t.scheduleId === state.selectedScheduleId)
+                .flatMap(t => t.seats);
+
             els.seatGrid.innerHTML = '';
             
-            // Encontrar asientos ocupados en este horario
-            const scheduleTickets = state.tickets.filter(t => t.scheduleId === state.selectedScheduleId);
-            let occupiedSeats = [];
-            scheduleTickets.forEach(t => {
-                if(Array.isArray(t.seats)) occupiedSeats.push(...t.seats);
-            });
-
-            // Diseño típico de Minibus Boliviano (14 asientos pasajeros + chofer)
-            // Fila 1: [Chofer] [1] [2]
-            // Fila 2: [3] [4] [5] [6] (Plegable)
-            // Fila 3: [7] [8] [9] [10] (Plegable)
-            // Fila 4: [11] [12] [13] [14]
-            // Adaptación simplificada a Grid de CSS para que luzca bien
-            const order = [
-                0, 1, 2, 0, // 0 = empty space (aisle or driver area)
-                3, 4, 5, 6,
-                7, 8, 9, 10,
-                11, 12, 13, 14
-            ];
-
-            order.forEach(seatNum => {
-                if (seatNum === 0) {
-                    els.seatGrid.innerHTML += `<div></div>`; // Espacio vacío
-                    return;
-                }
-
-                const isOccupied = occupiedSeats.includes(seatNum);
-                const isSelected = state.selectedSeats.includes(seatNum);
+            // Generar 14 asientos
+            for (let i = 1; i <= TOTAL_SEATS; i++) {
+                const isOccupied = occupiedSeats.includes(i);
+                const isSelected = state.selectedSeats.includes(i);
                 
-                const seatHtml = `
-                    <label class="cursor-pointer block relative w-full h-full flex justify-center">
-                        <input type="checkbox" class="sr-only seat-checkbox" value="${seatNum}" 
-                               ${isOccupied ? 'disabled' : ''} 
-                               ${isSelected ? 'checked' : ''}
-                               onchange="toggleSeat(${seatNum}, this.checked)">
-                        <div class="w-12 h-12 rounded-t-xl rounded-b-md border-2 flex items-center justify-center font-bold text-lg transition-all duration-200 shadow-sm
-                             ${isOccupied ? 'seat-occupied' : 'bg-white border-green-500 text-green-700 hover:bg-green-50'}">
-                            ${seatNum}
-                        </div>
-                    </label>
-                `;
-                els.seatGrid.insertAdjacentHTML('beforeend', seatHtml);
-            });
-        }
-
-        window.toggleSeat = function(seatNum, isChecked) {
-            if (isChecked) {
-                if(state.selectedSeats.length >= 5) {
-                    showModal("Límite Alcanzado", "Por políticas de la empresa, solo puedes reservar un máximo de 5 asientos a la vez.");
-                    renderSeatMap(); // Force uncheck visual
-                    return;
+                const div = document.createElement('div');
+                
+                if (isOccupied) {
+                    div.innerHTML = `<div class="seat-label seat-occupied">${i}</div>`;
+                } else {
+                    div.innerHTML = `
+                        <input type="checkbox" id="seat-${i}" value="${i}" class="seat-checkbox" ${isSelected ? 'checked' : ''}>
+                        <label for="seat-${i}" class="seat-label">${i}</label>
+                    `;
+                    
+                    div.querySelector('input').addEventListener('change', (e) => {
+                        const seatNum = parseInt(e.target.value);
+                        if (e.target.checked) {
+                            state.selectedSeats.push(seatNum);
+                        } else {
+                            state.selectedSeats = state.selectedSeats.filter(s => s !== seatNum);
+                        }
+                        updateTotal();
+                    });
                 }
-                state.selectedSeats.push(seatNum);
-            } else {
-                state.selectedSeats = state.selectedSeats.filter(s => s !== seatNum);
+                els.seatGrid.appendChild(div);
             }
-            updateTotal();
         }
 
         function updateTotal() {
-            const total = state.selectedSeats.length * state.selectedPrice;
-            els.pTotal.textContent = `${total} Bs`;
-            
-            // Habilitar o deshabilitar botón de reserva
-            const isValid = state.selectedRoute && state.selectedScheduleId && state.selectedDestination && state.selectedSeats.length > 0;
-            els.pBtnReserve.disabled = !isValid;
+            const total = state.selectedSeats.length * state.destinationPrice;
+            els.pTotal.innerText = `${total} Bs`;
         }
 
-        // --- FLUJO DE PAGO Y RESERVA ---
-        els.pBtnReserve.addEventListener('click', () => {
-            const name = els.pName.value.trim();
-            const ci = els.pCi.value.trim();
-            const phone = els.pPhone.value.trim();
-
-            if (!name || !ci || !phone) {
-                showModal("Faltan Datos", "Por favor, completa todos los datos del pasajero (Nombre, CI y WhatsApp).");
-                return;
-            }
-
-            const total = state.selectedSeats.length * state.selectedPrice;
-            els.qrTotal.textContent = `${total} Bs`;
+        // === GUARDADO DIRECTO EN LA WEB (FIREBASE) ===
+        els.btnReserve.addEventListener('click', () => {
+            if (state.selectedSeats.length === 0) return showModal('Error', 'Debes seleccionar al menos un asiento.');
+            if (!els.pName.value.trim() || !els.pCi.value.trim()) return showModal('Error', 'Llena tus datos (Nombre y CI).');
+            
+            els.qrTotal.innerText = `${state.selectedSeats.length * state.destinationPrice} Bs`;
             els.qrModal.classList.remove('hidden');
         });
 
-        els.qrBtnCancel.addEventListener('click', () => {
-            els.qrModal.classList.add('hidden');
-        });
+        els.qrBtnCancel.addEventListener('click', () => els.qrModal.classList.add('hidden'));
 
-        els.qrBtnConfirm.addEventListener('click', () => {
-            // Generar la reserva final
-            const total = state.selectedSeats.length * state.selectedPrice;
-            const newTicket = {
-                id: 'TKT-' + generateId().toUpperCase(),
-                scheduleId: state.selectedScheduleId,
-                route: state.selectedRoute,
-                destination: state.selectedDestination,
-                seats: [...state.selectedSeats],
-                pricePerSeat: state.selectedPrice,
-                total: total,
-                passenger: els.pName.value.trim(),
-                ci: els.pCi.value.trim(),
-                phone: els.pPhone.value.trim(),
-                status: 'Pendiente', // Pendiente hasta que Admin lo confirme
-                timestamp: new Date().toISOString()
-            };
+        els.qrBtnConfirm.addEventListener('click', async () => {
+            const total = state.selectedSeats.length * state.destinationPrice;
+            const btnOriginalText = els.qrBtnConfirm.innerHTML;
+            els.qrBtnConfirm.innerHTML = '<div class="loader"></div>';
+            els.qrBtnConfirm.disabled = true;
 
-            state.tickets.push(newTicket);
-            
-            // Cerrar QR, limpiar form, recargar vistas
-            els.qrModal.classList.add('hidden');
-            
-            // Limpiar form
-            state.selectedSeats = [];
-            els.pName.value = '';
-            els.pCi.value = '';
-            els.pPhone.value = '';
-            
-            updateScheduleDropdowns();
-            renderSeatMap();
-            updateTotal();
+            try {
+                // Guardar directamente en Firebase
+                await addDoc(getColRef('boletos'), {
+                    scheduleId: state.selectedScheduleId,
+                    seats: state.selectedSeats,
+                    passengerName: els.pName.value.trim(),
+                    ci: els.pCi.value.trim(),
+                    destination: state.selectedDestination,
+                    total: total,
+                    status: 'pagado',
+                    timestamp: new Date().toISOString()
+                });
 
-            showModal(
-                "¡Reserva Creada!", 
-                `Se han reservado tus asientos exitosamente. Tu código es ${newTicket.id}. El administrador verificará tu pago y confirmará tu espacio en los próximos minutos.`
-            );
-        });
-
-
-        // ==========================================
-        // 4. LÓGICA DEL ADMINISTRADOR (CRM)
-        // ==========================================
-
-        // Login Admin
-        els.btnLogin.addEventListener('click', () => {
-            const email = els.aEmail.value;
-            const pass = els.aPass.value;
-            if (email === 'admin1@lirujhan.com' && pass === 'lirujhan2026') {
-                state.isAdminLoggedIn = true;
-                switchView('admin');
-            } else {
-                showModal("Error de Acceso", "Credenciales incorrectas.");
+                els.qrModal.classList.add('hidden');
+                
+                // Reiniciar formulario
+                state.selectedSeats = [];
+                els.pName.value = '';
+                els.pCi.value = '';
+                els.pRoute.value = '';
+                els.pSchedule.value = '';
+                els.pDestination.value = '';
+                els.pSchedule.disabled = true;
+                els.pDestination.disabled = true;
+                els.seatMapContainer.classList.add('hidden');
+                
+                showModal('¡Reserva Exitosa!', 'Tu pago y reserva han sido guardados en el sistema web. El administrador verificará tu comprobante internamente. ¡Gracias por viajar con nosotros!');
+                
+            } catch (error) {
+                console.error("Error guardando reserva:", error);
+                showModal('Error', 'Hubo un problema al guardar la reserva.');
+            } finally {
+                els.qrBtnConfirm.innerHTML = btnOriginalText;
+                els.qrBtnConfirm.disabled = false;
             }
         });
 
-        // Logout
-        els.btnLogout.addEventListener('click', () => {
-            state.isAdminLoggedIn = false;
-            els.aEmail.value = 'admin1@lirujhan.com';
-            els.aPass.value = 'lirujhan2026';
-            switchView('passenger'); // Mandar de vuelta a inicio
+        // === ADMIN: LOGIN CON FIREBASE (CORREO/CONTRASEÑA) ===
+        els.btnLogin.addEventListener('click', async () => {
+            const email = els.adminEmail.value;
+            const password = els.adminPass.value;
+            const btnOriginalText = els.btnLogin.innerHTML;
+            
+            if (!email || !password) return showModal('Error', 'Por favor, ingresa correo y contraseña.');
+
+            els.btnLogin.innerHTML = '<div class="loader mx-auto border-white border-top-gray-400"></div>';
+            els.btnLogin.disabled = true;
+
+            try {
+                // Inicia sesión de administrador directo en Firebase
+                await signInWithEmailAndPassword(auth, email, password);
+                state.isAdmin = true;
+                switchView('admin-dash');
+            } catch (error) {
+                console.error("Error de login admin:", error);
+                showModal('Error', 'Credenciales incorrectas o usuario no registrado en Firebase.');
+            } finally {
+                els.btnLogin.innerHTML = btnOriginalText;
+                els.btnLogin.disabled = false;
+            }
         });
 
-        // Crear Nuevo Horario Extra
-        els.btnCreateSchedule.addEventListener('click', () => {
-            const route = els.newRoute.value;
-            const datetime = els.newDatetime.value;
-
-            if (!datetime) {
-                showModal("Error", "Debes seleccionar una fecha y hora para el nuevo horario.");
-                return;
+        els.btnLogout.addEventListener('click', async () => {
+            try {
+                await signOut(auth); // Cierra la sesión del administrador
+                state.isAdmin = false;
+                els.adminEmail.value = '';
+                els.adminPass.value = '';
+                await signInAnonymously(auth); // Vuelve a entrar como pasajero anónimo automáticamente
+                switchView('passenger');
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
             }
-
-            if (new Date(datetime) <= new Date()) {
-                showModal("Error", "La fecha y hora deben ser en el futuro.");
-                return;
-            }
-
-            const newSchedule = {
-                id: 'EXTRA_' + generateId(),
-                route: route,
-                datetime: datetime,
-                createdAt: new Date().toISOString()
-            };
-
-            state.schedules.push(newSchedule);
-            state.schedules.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-            
-            els.newDatetime.value = ""; // clear
-            showModal("Éxito", "Nuevo horario extra creado correctamente.");
-            
-            updateScheduleDropdowns();
         });
 
-        // Seleccionar Horario en CRM para ver pasajeros
+        // === ADMIN: FILTRO Y MANIFIESTO ===
         els.adminScheduleFilter.addEventListener('change', (e) => {
             state.adminSelectedScheduleId = e.target.value;
             renderManifest();
         });
 
-        // Renderizar Lista de Pasajeros (Manifiesto)
         function renderManifest() {
-            if (!state.adminSelectedScheduleId) {
-                els.manifestBody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">Seleccione un horario del desplegable superior para cargar el manifiesto.</td></tr>';
-                document.getElementById('admin-trip-summary').classList.add('hidden');
+            els.manifestBody.innerHTML = '';
+            if (!state.adminSelectedScheduleId) return;
+
+            const filteredTickets = state.tickets.filter(t => t.scheduleId === state.adminSelectedScheduleId);
+            
+            if (filteredTickets.length === 0) {
+                els.manifestBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-gray-500">No hay reservas para este horario.</td></tr>';
                 return;
             }
 
-            const scheduleTickets = state.tickets.filter(t => t.scheduleId === state.adminSelectedScheduleId);
-            
-            let totalSeats = 0;
-            let totalRevenue = 0;
-            let confirmedCount = 0;
-            let pendingCount = 0;
-
-            if (scheduleTickets.length === 0) {
-                els.manifestBody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500 font-medium">Este minibús está completamente vacío.</td></tr>';
-            } else {
-                els.manifestBody.innerHTML = scheduleTickets.map(t => {
-                    const badgeClass = t.status === 'Confirmado' 
-                        ? 'bg-green-100 text-green-800 border-green-200' 
-                        : 'bg-orange-100 text-orange-800 border-orange-200';
-                    
-                    totalSeats += t.seats.length;
-                    totalRevenue += t.total;
-                    if(t.status === 'Confirmado') confirmedCount++; else pendingCount++;
-
-                    return `
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 font-bold text-blue-600">${t.seats.join(', ')}</td>
-                            <td class="px-4 py-3">
-                                <div class="font-medium">${t.passenger}</div>
-                                <div class="text-xs text-gray-500">📞 ${t.phone}</div>
-                            </td>
-                            <td class="px-4 py-3 text-gray-600">${t.ci}</td>
-                            <td class="px-4 py-3 text-gray-600 text-xs">${t.destination}</td>
-                            <td class="px-4 py-3 font-medium">${t.total} Bs</td>
-                            <td class="px-4 py-3">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold border ${badgeClass}">
-                                    ${t.status}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex space-x-2">
-                                    ${t.status !== 'Confirmado' ? 
-                                        `<button onclick="confirmTicket('${t.id}')" class="text-green-600 hover:text-green-800 bg-green-50 p-1.5 rounded" title="Confirmar Pago">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        </button>` : ''
-                                    }
-                                    <button onclick="deleteTicket('${t.id}')" class="text-red-600 hover:text-red-800 bg-red-50 p-1.5 rounded" title="Eliminar Reserva">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-
-            // Actualizar el resumen
-            document.getElementById('admin-trip-summary').classList.remove('hidden');
-            document.getElementById('summary-seats').textContent = `${totalSeats}/14`;
-            document.getElementById('summary-revenue').textContent = `${totalRevenue} Bs`;
-            document.getElementById('summary-confirmed').textContent = confirmedCount;
-            document.getElementById('summary-pending').textContent = pendingCount;
+            filteredTickets.forEach(ticket => {
+                const tr = document.createElement('tr');
+                tr.classList.add('border-b');
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-semibold text-blue-600">${ticket.seats.join(', ')}</td>
+                    <td class="px-4 py-3">${ticket.passengerName}</td>
+                    <td class="px-4 py-3">${ticket.ci}</td>
+                    <td class="px-4 py-3">${ticket.destination}</td>
+                    <td class="px-4 py-3 font-bold">${ticket.total} Bs</td>
+                    <td class="px-4 py-3"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">${ticket.status}</span></td>
+                    <td class="px-4 py-3">
+                        <button class="text-red-500 hover:text-red-700 text-xs font-bold" onclick="deleteTicket('${ticket.id}')">Eliminar</button>
+                    </td>
+                `;
+                els.manifestBody.appendChild(tr);
+            });
         }
 
-        // Acciones globales desde el DOM para CRM
-        window.confirmTicket = function(ticketId) {
-            const idx = state.tickets.findIndex(t => t.id === ticketId);
-            if(idx > -1) {
-                state.tickets[idx].status = 'Confirmado';
-                renderManifest(); // refrescar
+        window.deleteTicket = async (id) => {
+            if(confirm('¿Estás seguro de cancelar esta reserva?')) {
+                await deleteDoc(doc(getColRef('boletos'), id));
             }
         };
 
-        window.deleteTicket = function(ticketId) {
-            showModal("Eliminar Reserva", "¿Estás seguro que deseas eliminar permanentemente esta reserva? Se liberarán los asientos.", true, () => {
-                state.tickets = state.tickets.filter(t => t.id !== ticketId);
-                updateScheduleDropdowns();
-                renderManifest();
-                
-                // Si el pasajero casualmente estaba mirando este mapa, se actualiza
-                if(state.selectedScheduleId) renderSeatMap(); 
-            });
-        };
+        // === ADMIN: CREAR HORARIO EXTRA ===
+        els.btnCreateSchedule.addEventListener('click', async () => {
+            const route = els.newRoute.value;
+            const datetime = els.newDatetime.value;
+            
+            if (!datetime) return showModal('Error', 'Selecciona una fecha y hora.');
 
-        // ==========================================
-        // 5. INICIALIZACIÓN
-        // ==========================================
-        // Establecer que la vista inicial sea pasajero y configurar todo
-        document.addEventListener('DOMContentLoaded', () => {
-            switchView('passenger');
-            updateScheduleDropdowns(); // Poblar dropdowns vacíos iniciales
+            try {
+                await addDoc(getColRef('horarios'), { route, datetime });
+                showModal('Éxito', 'Horario extra creado correctamente.');
+                els.newDatetime.value = '';
+            } catch (error) {
+                showModal('Error', 'No se pudo crear el horario.');
+            }
         });
 
+        // === MODAL UTILS ===
+        function showModal(title, msg) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('modal-content').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        document.getElementById('modal-btn-ok').addEventListener('click', () => {
+            document.getElementById('modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                document.getElementById('custom-modal').classList.add('hidden');
+            }, 200);
+        });
+
+        init();
     </script>
 </body>
 </html>

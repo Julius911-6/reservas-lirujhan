@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transporte LIRUJHAN - Reservas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <header class="bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                <h1 class="text-xl font-bold tracking-tight">Trans. LIRUJHAN</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <button id="nav-passenger" class="px-3 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition text-sm font-semibold">Pasajero</button>
+                <button id="nav-admin" class="px-3 py-2 bg-black/20 rounded-lg hover:bg-black/30 transition text-sm font-semibold">Admin (CRM)</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
+        
+        <section id="view-passenger" class="max-w-md mx-auto space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Reserva tu Asiento</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ruta</label>
+                        <select id="p-route" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 bg-gray-50 border outline-none">
+                            <option value="">Selecciona una ruta...</option>
+                            <option value="Pozo Cavado">Hacia Pozo Cavado</option>
+                            <option value="Todo Santos">Hacia Todo Santos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Horario Disponible</label>
+                        <select id="p-schedule" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none disabled:opacity-50" disabled>
+                            <option value="">Primero selecciona una ruta...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Destino Final</label>
+                        <select id="p-destination" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none disabled:opacity-50" disabled>
+                            <option value="">Primero selecciona una ruta...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="p-seat-map-container" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">Croquis del Minibus</h3>
+                    <div class="flex items-center space-x-2 text-xs text-gray-500">
+                        <span class="w-3 h-3 rounded-full bg-green-100 border border-green-500 inline-block"></span> Libre
+                        <span class="w-3 h-3 rounded-full bg-gray-300 border border-gray-400 inline-block ml-2"></span> Ocupado
+                        <span class="w-3 h-3 rounded-full bg-blue-500 inline-block ml-2"></span> Tu Selección
+                    </div>
+                </div>
+                
+                <div class="bg-gray-100 p-4 rounded-xl border-2 border-gray-200 relative">
+                    <div class="absolute top-4 left-6 text-gray-400">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div id="seat-grid" class="grid grid-cols-3 gap-3 mt-12 mb-4 max-w-[250px] mx-auto"></div>
+                </div>
+
+                <div class="mt-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Pasajero(s)</label>
+                        <input type="text" id="p-name" placeholder="Ej. Juan Pérez" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Carnet de Identidad (CI)</label>
+                        <input type="text" id="p-ci" placeholder="Ej. 1234567" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg flex justify-between items-center border border-orange-100">
+                        <span class="text-gray-700">Total a pagar:</span>
+                        <span id="p-total" class="text-2xl font-bold text-orange-600">0 Bs</span>
+                    </div>
+                    <button id="p-btn-reserve" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 flex justify-center items-center">
+                        Reservar vía WhatsApp
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-admin-login" class="max-w-md mx-auto hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <h2 class="text-2xl font-bold mb-2 text-gray-800">Acceso CRM</h2>
+                <div class="space-y-4 mt-6">
+                    <input type="email" id="a-email" placeholder="Correo electrónico" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
+                    <input type="password" id="a-pass" placeholder="Contraseña" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
+                    <button id="btn-login" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition duration-200">Ingresar</button>
+                    <p class="text-xs text-gray-400">Credenciales: admin1@lirujhan.com / lirujhan2026</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-admin-dashboard" class="hidden space-y-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Panel de Control CRM</h2>
+                <button id="btn-logout" class="text-sm text-red-600 font-semibold hover:underline">Cerrar Sesión</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 h-fit">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Nuevo Horario (Opcional)</h3>
+                    <p class="text-xs text-gray-500 mb-4">Los horarios fijos diarios ya están activos. Usa esto solo para crear salidas extra.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruta</label>
+                            <select id="new-route" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
+                                <option value="Pozo Cavado">Pozo Cavado</option>
+                                <option value="Todo Santos">Todo Santos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha y Hora</label>
+                            <input type="datetime-local" id="new-datetime" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
+                        </div>
+                        <button id="btn-create-schedule" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Crear Horario Extra</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 md:col-span-2">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="text-lg font-bold text-gray-800">Lista de Pasajeros</h3>
+                        <select id="admin-schedule-filter" class="border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none text-sm w-auto">
+                            <option value="">Seleccionar Horario...</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-gray-50 text-gray-600">
+                                <tr>
+                                    <th class="px-4 py-3">Asientos</th>
+                                    <th class="px-4 py-3">Pasajero</th>
+                                    <th class="px-4 py-3">CI</th>
+                                    <th class="px-4 py-3">Destino</th>
+                                    <th class="px-4 py-3">Total</th>
+                                    <th class="px-4 py-3">Estado</th>
+                                    <th class="px-4 py-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manifest-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="custom-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all scale-95 opacity-0" id="modal-content">
+            <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
+            <p id="modal-msg" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-end space-x-3" id="modal-actions">
+                <button id="modal-btn-cancel" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium hidden">Cancelar</button>
+                <button id="modal-btn-ok" class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 rounded-lg font-medium">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

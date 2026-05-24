@@ -88,7 +88,7 @@
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">Reserva tu Asiento</h2>
                 
                 <div class="space-y-4">
-                    <!-- NUEVO: Selector de Fecha para el Pasajero -->
+                    <!-- Selector de Fecha para el Pasajero -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Viaje</label>
                         <input type="date" id="p-date" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:border-orange-500 font-semibold text-gray-700">
@@ -285,9 +285,8 @@
             <h3 class="text-xl font-bold text-gray-900 mb-2">Pago por QR</h3>
             <p class="text-sm text-gray-600 mb-4">Escanea el código para pagar <span id="qr-total" class="font-bold text-orange-600"></span></p>
             
-            <div class="w-48 h-48 mx-auto mb-4 border rounded-lg shadow-sm bg-gray-100 flex items-center justify-center text-gray-400">
-                [Imagen de QR de Lirujhan]
-            </div>
+            <!-- AQUÍ SE INSERTA LA IMAGEN REAL DEL QR DEL REPOSITORIO -->
+            <img src="qr-pago.png" alt="QR de Pago Lirujhan" class="w-48 h-48 mx-auto mb-4 border rounded-lg shadow-sm object-contain bg-white">
             
             <p class="text-xs text-gray-500 mb-6 bg-yellow-50 p-2 rounded border border-yellow-100">
                 ⚠️ IMPORTANTE: Al confirmar, tu reserva quedará en estado <b>Pendiente</b> hasta que el administrador verifique el pago.
@@ -312,7 +311,6 @@
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // Datos reales proporcionados
             firebaseConfig = {
                 apiKey: "AIzaSyCVKYWyf38Wa6t7unYKfasGBG3N39mq2gA",
                 authDomain: "lirujhan-app.firebaseapp.com",
@@ -335,10 +333,8 @@
             return collection(db, colName);
         }
 
-        // === UTILIDAD: OBTENER FECHA LOCAL (Bolivia) ===
         function getLocalDateStr() {
             const d = new Date();
-            // Ajustar a la zona horaria local para evitar problemas con UTC
             d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
             return d.toISOString().split('T')[0];
         }
@@ -346,7 +342,6 @@
         const DAILY_SCHEDULES = ['06:30', '07:00', '14:00', '15:00', '16:00', '17:30', '18:00'];
         const TOTAL_SEATS = 14; 
 
-        // === ESTADO GLOBAL ===
         const state = {
             schedules: [],
             tickets: [],
@@ -355,14 +350,13 @@
             selectedDestination: '',
             destinationPrice: 0,
             selectedSeats: [],
-            passengerSelectedDate: getLocalDateStr(), // Fecha que selecciona el cliente
+            passengerSelectedDate: getLocalDateStr(), 
             adminSelectedScheduleId: '',
-            adminSelectedDate: getLocalDateStr(), // Fecha que ve el admin
+            adminSelectedDate: getLocalDateStr(), 
             user: null,
             isAdmin: false
         };
 
-        // === REFERENCIAS DOM ===
         const els = {
             viewPassenger: document.getElementById('view-passenger'),
             viewAdminLogin: document.getElementById('view-admin-login'),
@@ -403,12 +397,10 @@
             qrBtnCancel: document.getElementById('qr-btn-cancel')
         };
 
-        // === INICIALIZACIÓN ===
         async function init() {
-            // Inicializar fechas en los calendarios
             els.adminDateFilter.value = state.adminSelectedDate;
             els.pDate.value = state.passengerSelectedDate;
-            els.pDate.min = getLocalDateStr(); // El cliente no puede comprar pasajes al pasado
+            els.pDate.min = getLocalDateStr(); 
 
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -436,7 +428,6 @@
             }
         });
 
-        // === LISTENERS EN TIEMPO REAL ===
         function setupRealtimeListeners() {
             onSnapshot(getColRef('horarios'), (snapshot) => {
                 state.schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -494,26 +485,38 @@
 
         // === PASAJERO: EVENTOS ===
         
-        // Cuando cambia la fecha
+        // CORRECCIÓN PRINCIPAL: Limpieza Forzada al cambiar fecha o ruta
         els.pDate.addEventListener('change', (e) => {
             state.passengerSelectedDate = e.target.value;
-            // Limpiar todo para evitar cruces
+            // Limpia por completo la memoria del sistema
             state.selectedScheduleId = '';
+            state.selectedRoute = '';
+            state.selectedDestination = '';
             state.selectedSeats = [];
-            els.pSchedule.value = '';
+            
+            els.pRoute.value = '';
+            els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
+            els.pSchedule.disabled = true;
             els.pDestination.value = '';
             els.pDestination.disabled = true;
             els.seatMapContainer.classList.add('hidden');
+            
             updateScheduleDropdowns();
         });
 
         els.pRoute.addEventListener('change', (e) => {
             state.selectedRoute = e.target.value;
-            els.pSchedule.disabled = !state.selectedRoute;
-            els.pDestination.disabled = true;
-            els.pDestination.value = "";
+            // Limpia por completo la memoria del minibús anterior
+            state.selectedScheduleId = '';
+            state.selectedDestination = '';
             state.selectedSeats = [];
+            
+            els.pSchedule.value = '';
+            els.pSchedule.disabled = !state.selectedRoute;
+            els.pDestination.value = "";
+            els.pDestination.disabled = true;
             els.seatMapContainer.classList.add('hidden');
+            
             updateScheduleDropdowns();
         });
 
@@ -538,9 +541,7 @@
             updateTotal();
         });
 
-        // === LÓGICA DE DESPLEGABLES ===
         function updateScheduleDropdowns() {
-            // 1. LÓGICA PASAJERO (Ve horarios de la fecha seleccionada)
             if (!state.selectedRoute) {
                 els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
             } else {
@@ -560,15 +561,11 @@
                 if(state.selectedScheduleId) els.pSchedule.value = state.selectedScheduleId;
             }
 
-            // 2. LÓGICA ADMINISTRADOR (Ve los horarios de la FECHA SELECCIONADA)
             const targetAdminDate = state.adminSelectedDate; 
-            
-            // Buscar todas las reservas que pertenecen a la fecha seleccionada por el admin
             const ticketScheduleIds = [...new Set(state.tickets.map(t => t.scheduleId))];
             
             const aOptions = [];
             
-            // Recorrer todas las reservas para mostrar las de esa fecha
             ticketScheduleIds.forEach(id => {
                 let belongsToDate = false;
                 let label = id;
@@ -590,7 +587,6 @@
                 }
             });
 
-            // Añadir los horarios fijos vacíos PARA LA FECHA SELECCIONADA DEL ADMIN
             ['Pozo Cavado', 'Todo Santos'].forEach(route => {
                 DAILY_SCHEDULES.forEach(time => {
                     const fixedId = `FIJO_${route}_${targetAdminDate}_${time}`;
@@ -600,7 +596,6 @@
                 });
             });
 
-            // Añadir horarios extra vacíos de la FECHA SELECCIONADA DEL ADMIN
             state.schedules.forEach(s => {
                 if (s.datetime.startsWith(targetAdminDate) && !ticketScheduleIds.includes(s.id)) {
                     aOptions.push(`<option value="${s.id}">⚪ ${s.route} - ${formatDate(s.datetime)} (Extra vacío)</option>`);
@@ -611,11 +606,9 @@
             if(state.adminSelectedScheduleId) els.adminScheduleFilter.value = state.adminSelectedScheduleId;
         }
 
-        // === CROQUIS DE ASIENTOS ===
         function renderSeatMap() {
             if (!state.selectedScheduleId) return;
             
-            // Muestra ocupados tanto los aceptados como los pendientes para evitar sobreventa
             const occupiedSeats = state.tickets
                 .filter(t => t.scheduleId === state.selectedScheduleId)
                 .flatMap(t => t.seats);
@@ -655,7 +648,6 @@
             els.pTotal.innerText = `${total} Bs`;
         }
 
-        // === GUARDADO DIRECTO (ESTADO PENDIENTE) ===
         els.btnReserve.addEventListener('click', () => {
             if (state.selectedSeats.length === 0) return showModal('Error', 'Debes seleccionar al menos un asiento.');
             if (!els.pName.value.trim() || !els.pCi.value.trim()) return showModal('Error', 'Llena tus datos (Nombre y CI).');
@@ -673,7 +665,6 @@
             els.qrBtnConfirm.disabled = true;
 
             try {
-                // Se guarda como 'pendiente'
                 await addDoc(getColRef('boletos'), {
                     scheduleId: state.selectedScheduleId,
                     seats: state.selectedSeats,
@@ -687,7 +678,6 @@
 
                 els.qrModal.classList.add('hidden');
                 
-                // Reiniciar formulario
                 state.selectedSeats = [];
                 els.pName.value = '';
                 els.pCi.value = '';
@@ -709,7 +699,6 @@
             }
         });
 
-        // === ADMIN: LOGIN ===
         els.btnLogin.addEventListener('click', async () => {
             const email = els.adminEmail.value;
             const password = els.adminPass.value;
@@ -746,10 +735,9 @@
             }
         });
 
-        // === ADMIN: FECHAS Y RESUMEN DIARIO ===
         els.adminDateFilter.addEventListener('change', (e) => {
             state.adminSelectedDate = e.target.value;
-            state.adminSelectedScheduleId = ''; // Resetear horario al cambiar de día
+            state.adminSelectedScheduleId = ''; 
             updateScheduleDropdowns();
             renderManifest();
             updateDailySummary();
@@ -761,7 +749,6 @@
             const targetDate = state.adminSelectedDate;
 
             state.tickets.forEach(ticket => {
-                // Verificar si la reserva pertenece al día seleccionado
                 let belongsToDate = false;
                 if (ticket.scheduleId.startsWith('FIJO_') && ticket.scheduleId.includes(targetDate)) {
                     belongsToDate = true;
@@ -772,7 +759,6 @@
                     }
                 }
 
-                // Sumar SOLO si pertenece al día y si está aceptada (dinero asegurado)
                 if (belongsToDate && ticket.status === 'aceptado') {
                     totalTickets += ticket.seats.length;
                     totalBs += ticket.total;
@@ -783,7 +769,6 @@
             els.adminSummaryTotal.innerText = `${totalBs} Bs`;
         }
 
-        // === ADMIN: FILTRO HORARIO Y MANIFIESTO ===
         els.adminScheduleFilter.addEventListener('change', (e) => {
             state.adminSelectedScheduleId = e.target.value;
             renderManifest();
@@ -804,7 +789,6 @@
                 const tr = document.createElement('tr');
                 tr.classList.add('border-b');
                 
-                // Diseño de estados
                 let statusBadge = '';
                 let actionButtons = '';
 
@@ -816,7 +800,6 @@
                     `;
                 } else if (ticket.status === 'aceptado') {
                     statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">Aceptado</span>`;
-                    // Una vez aceptado, no se puede eliminar/rechazar por seguridad
                     actionButtons = `<span class="text-gray-400 text-xs italic">Asegurado</span>`; 
                 } else {
                     statusBadge = `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">${ticket.status}</span>`;
@@ -835,7 +818,6 @@
             });
         }
 
-        // Acciones Admin (Aceptar / Rechazar)
         window.acceptTicket = async (id) => {
             if(confirm('¿Confirmas que recibiste el pago? El boleto pasará a estado ACEPTADO y no podrá eliminarse.')) {
                 try {
@@ -858,7 +840,6 @@
             }
         };
 
-        // === ADMIN: CREAR HORARIO EXTRA ===
         els.btnCreateSchedule.addEventListener('click', async () => {
             const route = els.newRoute.value;
             const datetime = els.newDatetime.value;
@@ -874,7 +855,6 @@
             }
         });
 
-        // === MODAL UTILS ===
         function showModal(title, msg) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-msg').innerText = msg;

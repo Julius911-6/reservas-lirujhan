@@ -88,6 +88,11 @@
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">Reserva tu Asiento</h2>
                 
                 <div class="space-y-4">
+                    <!-- NUEVO: Selector de Fecha para el Pasajero -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Viaje</label>
+                        <input type="date" id="p-date" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:border-orange-500 font-semibold text-gray-700">
+                    </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Ruta Principal</label>
                         <select id="p-route" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 bg-gray-50 border outline-none">
@@ -350,8 +355,9 @@
             selectedDestination: '',
             destinationPrice: 0,
             selectedSeats: [],
+            passengerSelectedDate: getLocalDateStr(), // Fecha que selecciona el cliente
             adminSelectedScheduleId: '',
-            adminSelectedDate: getLocalDateStr(), // Inicia con la fecha de hoy
+            adminSelectedDate: getLocalDateStr(), // Fecha que ve el admin
             user: null,
             isAdmin: false
         };
@@ -365,6 +371,7 @@
             navAdmin: document.getElementById('nav-admin'),
             connectionStatus: document.getElementById('connection-status'),
 
+            pDate: document.getElementById('p-date'),
             pRoute: document.getElementById('p-route'),
             pSchedule: document.getElementById('p-schedule'),
             pDestination: document.getElementById('p-destination'),
@@ -398,7 +405,10 @@
 
         // === INICIALIZACIÓN ===
         async function init() {
+            // Inicializar fechas en los calendarios
             els.adminDateFilter.value = state.adminSelectedDate;
+            els.pDate.value = state.passengerSelectedDate;
+            els.pDate.min = getLocalDateStr(); // El cliente no puede comprar pasajes al pasado
 
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -483,17 +493,33 @@
         els.navAdmin.addEventListener('click', () => switchView(state.user && state.isAdmin ? 'admin-dash' : 'admin-login'));
 
         // === PASAJERO: EVENTOS ===
+        
+        // Cuando cambia la fecha
+        els.pDate.addEventListener('change', (e) => {
+            state.passengerSelectedDate = e.target.value;
+            // Limpiar todo para evitar cruces
+            state.selectedScheduleId = '';
+            state.selectedSeats = [];
+            els.pSchedule.value = '';
+            els.pDestination.value = '';
+            els.pDestination.disabled = true;
+            els.seatMapContainer.classList.add('hidden');
+            updateScheduleDropdowns();
+        });
+
         els.pRoute.addEventListener('change', (e) => {
             state.selectedRoute = e.target.value;
             els.pSchedule.disabled = !state.selectedRoute;
             els.pDestination.disabled = true;
             els.pDestination.value = "";
+            state.selectedSeats = [];
             els.seatMapContainer.classList.add('hidden');
             updateScheduleDropdowns();
         });
 
         els.pSchedule.addEventListener('change', (e) => {
             state.selectedScheduleId = e.target.value;
+            state.selectedSeats = []; // Reiniciamos los asientos al cambiar de horario
             els.pDestination.disabled = !state.selectedScheduleId;
             els.pDestination.value = "";
             els.seatMapContainer.classList.add('hidden');
@@ -514,18 +540,20 @@
 
         // === LÓGICA DE DESPLEGABLES ===
         function updateScheduleDropdowns() {
-            // 1. LÓGICA PASAJERO (Solo ve horarios a partir de "Hoy")
+            // 1. LÓGICA PASAJERO (Ve horarios de la fecha seleccionada)
             if (!state.selectedRoute) {
                 els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
             } else {
-                const todayStr = getLocalDateStr();
+                const targetDate = state.passengerSelectedDate || getLocalDateStr();
+                const isToday = targetDate === getLocalDateStr();
+                const dayLabel = isToday ? '(Hoy)' : `(${targetDate})`;
+
                 const fixedOptions = DAILY_SCHEDULES.map(time => {
-                    return `<option value="FIJO_${state.selectedRoute}_${todayStr}_${time}">${time} (Hoy)</option>`;
+                    return `<option value="FIJO_${state.selectedRoute}_${targetDate}_${time}">${time} ${dayLabel}</option>`;
                 });
 
-                const now = new Date();
                 const extraOptions = state.schedules
-                    .filter(s => s.route === state.selectedRoute && new Date(s.datetime) >= now)
+                    .filter(s => s.route === state.selectedRoute && s.datetime.startsWith(targetDate))
                     .map(s => `<option value="${s.id}">${formatDate(s.datetime)} (Extra)</option>`);
                 
                 els.pSchedule.innerHTML = '<option value="">Selecciona un horario...</option>' + fixedOptions.join('') + extraOptions.join('');
@@ -533,9 +561,9 @@
             }
 
             // 2. LÓGICA ADMINISTRADOR (Ve los horarios de la FECHA SELECCIONADA)
-            const targetDate = state.adminSelectedDate; 
+            const targetAdminDate = state.adminSelectedDate; 
             
-            // Buscar todas las reservas que pertenecen a la fecha seleccionada
+            // Buscar todas las reservas que pertenecen a la fecha seleccionada por el admin
             const ticketScheduleIds = [...new Set(state.tickets.map(t => t.scheduleId))];
             
             const aOptions = [];
@@ -545,13 +573,13 @@
                 let belongsToDate = false;
                 let label = id;
 
-                if (id.startsWith('FIJO_') && id.includes(targetDate)) {
+                if (id.startsWith('FIJO_') && id.includes(targetAdminDate)) {
                     belongsToDate = true;
                     const parts = id.split('_'); 
                     label = `${parts[1]} a las ${parts[3]}`;
                 } else {
                     const s = state.schedules.find(x => x.id === id);
-                    if (s && s.datetime.startsWith(targetDate)) {
+                    if (s && s.datetime.startsWith(targetAdminDate)) {
                         belongsToDate = true;
                         label = `${s.route} - ${formatDate(s.datetime)} (Extra)`;
                     }
@@ -562,19 +590,19 @@
                 }
             });
 
-            // Añadir los horarios fijos vacíos PARA LA FECHA SELECCIONADA
+            // Añadir los horarios fijos vacíos PARA LA FECHA SELECCIONADA DEL ADMIN
             ['Pozo Cavado', 'Todo Santos'].forEach(route => {
                 DAILY_SCHEDULES.forEach(time => {
-                    const fixedId = `FIJO_${route}_${targetDate}_${time}`;
+                    const fixedId = `FIJO_${route}_${targetAdminDate}_${time}`;
                     if (!ticketScheduleIds.includes(fixedId)) {
                         aOptions.push(`<option value="${fixedId}">⚪ ${route} a las ${time} (Vacío)</option>`);
                     }
                 });
             });
 
-            // Añadir horarios extra vacíos de la FECHA SELECCIONADA
+            // Añadir horarios extra vacíos de la FECHA SELECCIONADA DEL ADMIN
             state.schedules.forEach(s => {
-                if (s.datetime.startsWith(targetDate) && !ticketScheduleIds.includes(s.id)) {
+                if (s.datetime.startsWith(targetAdminDate) && !ticketScheduleIds.includes(s.id)) {
                     aOptions.push(`<option value="${s.id}">⚪ ${s.route} - ${formatDate(s.datetime)} (Extra vacío)</option>`);
                 }
             });

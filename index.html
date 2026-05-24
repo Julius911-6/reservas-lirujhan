@@ -148,12 +148,8 @@
                 </div>
                 
                 <div class="bg-gray-100 p-4 rounded-xl border-2 border-gray-200 relative">
-                    <div class="absolute top-4 left-6 text-gray-400">
-                        <!-- Icono de conductor -->
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <!-- Grid de 14 asientos (típico minibus) -->
-                    <div id="seat-grid" class="grid grid-cols-4 gap-3 mt-12 mb-4 max-w-[300px] mx-auto">
+                    <!-- Grid de 14 asientos ordenado según planilla -->
+                    <div id="seat-grid" class="grid grid-cols-4 gap-3 my-4 max-w-[300px] mx-auto">
                         <!-- Los asientos se generan con JS -->
                     </div>
                 </div>
@@ -616,23 +612,33 @@
 
             els.seatGrid.innerHTML = '';
             
-            // Definición del orden de los asientos según el diagrama
+            // Definición del orden de los asientos según el diagrama (5 filas, 4 columnas)
             const seatLayout = [
-                [13, 9, 5, 1],
-                [14, 10, 6, 2],
-                [null, 11, 7, 3], // null representa el espacio vacío (pasillo)
-                [null, 12, 8, 4]
+                [null, null, 13, 14],
+                [3, 4, null, null],
+                [5, 6, null, 1],
+                [7, 8, null, 2],
+                [9, 10, 11, 12]
             ];
 
             // Itera sobre la matriz para generar el mapa de asientos
-            for (let row = 0; row < 4; row++) {
+            for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 4; col++) {
                     const i = seatLayout[row][col];
                     const div = document.createElement('div');
 
                     if (i === null) {
-                        // Espacio vacío (pasillo)
-                        div.innerHTML = '<div class="h-12"></div>'; // Un div vacío para mantener el layout
+                        // Si es el primer cuadro (arriba a la izquierda), colocamos al conductor
+                        if (row === 0 && col === 0) {
+                            div.innerHTML = `
+                                <div class="flex items-center justify-center h-full text-gray-400" title="Conductor">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                            `;
+                        } else {
+                            // Espacio vacío (pasillo u otro rincón)
+                            div.innerHTML = '<div class="h-12"></div>'; 
+                        }
                     } else {
                         const isOccupied = occupiedSeats.includes(i);
                         const isSelected = state.selectedSeats.includes(i);

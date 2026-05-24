@@ -99,6 +99,7 @@
                             <option value="">Selecciona una ruta...</option>
                             <option value="Pozo Cavado">Hacia Pozo Cavado</option>
                             <option value="Todo Santos">Hacia Todo Santos</option>
+                            <option value="Uyuni">Hacia Uyuni</option>
                         </select>
                     </div>
                     <div>
@@ -152,7 +153,7 @@
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <!-- Grid de 14 asientos (típico minibus) -->
-                    <div id="seat-grid" class="grid grid-cols-3 gap-3 mt-12 mb-4 max-w-[250px] mx-auto">
+                    <div id="seat-grid" class="grid grid-cols-4 gap-3 mt-12 mb-4 max-w-[300px] mx-auto">
                         <!-- Los asientos se generan con JS -->
                     </div>
                 </div>
@@ -185,7 +186,6 @@
                     <input type="email" id="a-email" placeholder="Correo electrónico del administrador" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
                     <input type="password" id="a-pass" placeholder="Contraseña" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
                     <button id="btn-login" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition duration-200">Ingresar como Admin</button>
-                    <p class="text-xs text-gray-400">Ingresa con el correo registrado en tu panel de Firebase</p>
                 </div>
             </div>
         </section>
@@ -229,6 +229,7 @@
                             <select id="new-route" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
                                 <option value="Pozo Cavado">Pozo Cavado</option>
                                 <option value="Todo Santos">Todo Santos</option>
+                                <option value="Uyuni">Uyuni</option>
                             </select>
                         </div>
                         <div>
@@ -587,7 +588,7 @@
                 }
             });
 
-            ['Pozo Cavado', 'Todo Santos'].forEach(route => {
+            ['Pozo Cavado', 'Todo Santos', 'Uyuni'].forEach(route => {
                 DAILY_SCHEDULES.forEach(time => {
                     const fixedId = `FIJO_${route}_${targetAdminDate}_${time}`;
                     if (!ticketScheduleIds.includes(fixedId)) {
@@ -615,31 +616,48 @@
 
             els.seatGrid.innerHTML = '';
             
-            for (let i = 1; i <= TOTAL_SEATS; i++) {
-                const isOccupied = occupiedSeats.includes(i);
-                const isSelected = state.selectedSeats.includes(i);
-                
-                const div = document.createElement('div');
-                
-                if (isOccupied) {
-                    div.innerHTML = `<div class="seat-label seat-occupied">${i}</div>`;
-                } else {
-                    div.innerHTML = `
-                        <input type="checkbox" id="seat-${i}" value="${i}" class="seat-checkbox" ${isSelected ? 'checked' : ''}>
-                        <label for="seat-${i}" class="seat-label">${i}</label>
-                    `;
-                    
-                    div.querySelector('input').addEventListener('change', (e) => {
-                        const seatNum = parseInt(e.target.value);
-                        if (e.target.checked) {
-                            state.selectedSeats.push(seatNum);
+            // Definición del orden de los asientos según el diagrama
+            const seatLayout = [
+                [13, 9, 5, 1],
+                [14, 10, 6, 2],
+                [null, 11, 7, 3], // null representa el espacio vacío (pasillo)
+                [null, 12, 8, 4]
+            ];
+
+            // Itera sobre la matriz para generar el mapa de asientos
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const i = seatLayout[row][col];
+                    const div = document.createElement('div');
+
+                    if (i === null) {
+                        // Espacio vacío (pasillo)
+                        div.innerHTML = '<div class="h-12"></div>'; // Un div vacío para mantener el layout
+                    } else {
+                        const isOccupied = occupiedSeats.includes(i);
+                        const isSelected = state.selectedSeats.includes(i);
+                        
+                        if (isOccupied) {
+                            div.innerHTML = `<div class="seat-label seat-occupied">${i}</div>`;
                         } else {
-                            state.selectedSeats = state.selectedSeats.filter(s => s !== seatNum);
+                            div.innerHTML = `
+                                <input type="checkbox" id="seat-${i}" value="${i}" class="seat-checkbox" ${isSelected ? 'checked' : ''}>
+                                <label for="seat-${i}" class="seat-label">${i}</label>
+                            `;
+                            
+                            div.querySelector('input').addEventListener('change', (e) => {
+                                const seatNum = parseInt(e.target.value);
+                                if (e.target.checked) {
+                                    state.selectedSeats.push(seatNum);
+                                } else {
+                                    state.selectedSeats = state.selectedSeats.filter(s => s !== seatNum);
+                                }
+                                updateTotal();
+                            });
                         }
-                        updateTotal();
-                    });
+                    }
+                    els.seatGrid.appendChild(div);
                 }
-                els.seatGrid.appendChild(div);
             }
         }
 

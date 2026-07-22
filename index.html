@@ -3,1093 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transporte LIRUJHAN - Reservas</title>
+    <title>Transporte LIRUJHAN - Sistema de Reservas</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- jsPDF para generar PDFs -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-        }
-
-        /* Ocultar checkbox original */
-        .seat-checkbox {
-            display: none;
-        }
-
-        /* Diseño del asiento libre */
-        .seat-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 3rem;
-            border-radius: 0.5rem;
-            border: 2px solid #22c55e;
-            background-color: #dcfce7;
-            color: #166534;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        /* Cambia el color del asiento cuando lo seleccionas */
-        .seat-checkbox:checked + .seat-label {
-            background-color: #3b82f6; 
-            color: white;
-            border-color: #2563eb; 
-        }
-
-        /* Pone el asiento en gris cuando ya lo compró alguien más */
-        .seat-occupied {
-            background-color: #d1d5db !important; 
-            color: #6b7280 !important; 
-            border-color: #9ca3af !important; 
-            cursor: not-allowed;
-            text-decoration: line-through;
-            pointer-events: none;
-        }
-
-        /* La bolita naranja que da vueltas cuando está cargando */
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #f97316; 
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
-        }
-    </style>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
+<body class="bg-gray-100 font-sans min-h-screen pb-12">
 
-    <header class="bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                <h1 class="text-xl font-bold tracking-tight">Trans. LIRUJHAN</h1>
+    <!-- Navegación -->
+    <nav class="bg-blue-800 text-white p-4 shadow-lg flex justify-between items-center">
+        <h1 class="text-xl font-bold tracking-wide">TRANSPORTE LIRUJHAN</h1>
+        <button id="btn-login" onclick="toggleAdminPanel()" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded transition">
+            <i class="fa-solid fa-user-lock mr-1"></i> Admin / Vendedor
+        </button>
+    </nav>
+
+    <div class="max-w-md mx-auto p-4 space-y-6">
+
+        <!-- Vista Cliente / Comprador -->
+        <div id="vista-cliente" class="bg-white p-5 rounded-xl shadow-md border border-gray-200">
+            <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Selección de Asientos</h2>
+            
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Destino del Pasajero</label>
+                <select id="select-destino" class="w-full border rounded-lg p-2 text-sm bg-gray-50">
+                    <option value="T.B.">T.B.</option>
+                    <option value="P.C.">P.C.</option>
+                    <option value="Comunidad A">Comunidad A</option>
+                </select>
             </div>
-            <div id="connection-status" class="hidden md:block px-2 py-1 bg-yellow-500/20 text-yellow-100 text-xs rounded border border-yellow-400/50">Conectando...</div>
-            <nav class="flex space-x-4">
-                <button id="nav-passenger" class="px-3 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition text-sm font-semibold">Pasajero</button>
-                <button id="nav-admin" class="px-3 py-2 bg-black/20 rounded-lg hover:bg-black/30 transition text-sm font-semibold">Admin (CRM)</button>
-            </nav>
+
+            <!-- Esquema del Bus (14 Asientos) -->
+            <div class="bg-gray-50 p-4 rounded-lg border text-center">
+                <div class="text-xs font-bold text-gray-500 mb-2">FRENTE DEL VEHÍCULO (CHOFER)</div>
+                <div id="mapa-asientos" class="grid grid-cols-3 gap-3">
+                    <!-- Los asientos se generan dinámicamente con JS -->
+                </div>
+            </div>
         </div>
-    </header>
 
-    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
-        
-        <!-- VISTA PASAJERO -->
-        <section id="view-passenger" class="max-w-md mx-auto space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Reserva tu Asiento</h2>
+        <!-- Panel Administrador -->
+        <div id="vista-admin" class="hidden space-y-4">
+            
+            <!-- Bloque de Cierre de Caja y Descarga de PDF -->
+            <div class="bg-white p-5 rounded-xl shadow-md border border-blue-200">
+                <h3 class="text-md font-bold text-blue-900 mb-3 flex items-center">
+                    <i class="fa-solid fa-file-invoice-dollar mr-2"></i> Cierre Diario y Planilla PDF
+                </h3>
                 
-                <div class="space-y-4">
-                    <!-- Selector de Fecha para el Pasajero -->
+                <div class="space-y-3 text-sm">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Viaje</label>
-                        <input type="date" id="p-date" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none focus:border-orange-500 font-semibold text-gray-700">
+                        <label class="block text-xs font-semibold text-gray-600">Fecha de Planilla:</label>
+                        <input type="date" id="fecha-planilla" class="w-full border rounded-lg p-2 mt-1">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Ruta Principal</label>
-                        <select id="p-route" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 bg-gray-50 border outline-none">
-                            <option value="">Selecciona una ruta...</option>
-                            <option value="Pozo Cavado">Hacia Pozo Cavado</option>
-                            <option value="Todo Santos">Hacia Todo Santos</option>
-                            <option value="Uyuni">Hacia Uyuni</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Horario Disponible</label>
-                        <select id="p-schedule" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none disabled:opacity-50" disabled>
-                            <option value="">Primero selecciona una ruta...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Destino Final</label>
-                        <select id="p-destination" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none disabled:opacity-50" disabled>
-                            <option value="">Primero selecciona un horario...</option>
-                            <optgroup label="Rutas">
-                                <option value="Ramaditas_16">Ramaditas (16 Bs)</option>
-                                <option value="Bella Vista_25">Bella Vista (25 Bs)</option>
-                                <option value="Catavi K_30">Catavi K (30 Bs)</option>
-                                <option value="Tambillo_35">Tambillo (35 Bs)</option>
-                                <option value="Pista o Awaquiza_40">Pista o Awaquiza (40 Bs)</option>
-                                <option value="Pozo Cavado_40">Pozo Cavado (40 Bs)</option>
-                            </optgroup>
-                            <optgroup label="Otras Rutas">
-                                <option value="Vila Vila_25">Vila Vila (25 Bs)</option>
-                                <option value="San Cristobal_30">San Cristobal (30 Bs)</option>
-                                <option value="Culpina K_35">Culpina K (35 Bs)</option>
-                                <option value="Serena_45">Serena (45 Bs)</option>
-                                <option value="Vilama_50">Vilama (50 Bs)</option>
-                                <option value="Agua de Castilla_55">Agua de Castilla (55 Bs)</option>
-                                <option value="Cerro Gordo_60">Cerro Gordo (60 Bs)</option>
-                                <option value="Mejillones_70">Mejillones (70 Bs)</option>
-                                <option value="Todo Santos_80">Todo Santos (80 Bs)</option>
-                                <option value="Uyuni_40">Uyuni (40 Bs)</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                </div>
-            </div>
 
-            <div id="p-seat-map-container" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Croquis del Minibus</h3>
-                    <div class="flex items-center space-x-2 text-xs text-gray-500">
-                        <span class="w-3 h-3 rounded-full bg-green-100 border border-green-500 inline-block"></span> Libre
-                        <span class="w-3 h-3 rounded-full bg-gray-300 border border-gray-400 inline-block ml-2"></span> Ocupado
-                        <span class="w-3 h-3 rounded-full bg-blue-500 inline-block ml-2"></span> Tú
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Otros Ingresos (Encomiendas/Carga) Bs:</label>
+                        <input type="number" id="input-otros-ingresos" placeholder="0.00" min="0" step="0.50" class="w-full border rounded-lg p-2 mt-1">
                     </div>
-                </div>
-                
-                <div class="bg-gray-100 p-4 rounded-xl border-2 border-gray-200 relative">
-                    <!-- Grid de 14 asientos ordenado según planilla -->
-                    <div id="seat-grid" class="grid grid-cols-4 gap-3 my-4 max-w-[300px] mx-auto">
-                        <!-- Los asientos se generan con JS -->
-                    </div>
-                </div>
 
-                <div class="mt-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Pasajero(s)</label>
-                        <input type="text" id="p-name" placeholder="Ej. Juan Pérez" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Carnet de Identidad (CI)</label>
-                        <input type="text" id="p-ci" placeholder="Ej. 1234567" class="w-full border-gray-300 rounded-lg shadow-sm p-3 bg-gray-50 border outline-none">
-                    </div>
-                    <div class="bg-orange-50 p-4 rounded-lg flex justify-between items-center border border-orange-100">
-                        <span class="text-gray-700">Total a pagar:</span>
-                        <span id="p-total" class="text-2xl font-bold text-orange-600">0 Bs</span>
-                    </div>
-                    <button id="p-btn-reserve" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 flex justify-center items-center">
-                        Pagar y Reservar
+                    <button onclick="generarYDescargarPlanillaPDF()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg shadow text-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Descargar Planilla Diaria (PDF)
                     </button>
                 </div>
             </div>
-        </section>
 
-        <!-- LOGIN ADMIN -->
-        <section id="view-admin-login" class="max-w-md mx-auto hidden">
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-                <h2 class="text-2xl font-bold mb-2 text-gray-800">Acceso CRM</h2>
-                <div class="space-y-4 mt-6">
-                    <input type="email" id="a-email" placeholder="Correo electrónico del administrador" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
-                    <input type="password" id="a-pass" placeholder="Contraseña" class="w-full border-gray-300 rounded-lg p-3 bg-gray-50 border outline-none">
-                    <button id="btn-login" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition duration-200">Ingresar como Admin</button>
+            <!-- Lista de Pasajeros Registrados -->
+            <div class="bg-white p-5 rounded-xl shadow-md border border-gray-200">
+                <h3 class="text-md font-bold text-gray-800 mb-2">Planilla de Ventas (CRM)</h3>
+                <div id="lista-ventas" class="text-xs divide-y">
+                    <!-- Registros de pasajeros -->
                 </div>
             </div>
-        </section>
+        </div>
 
-        <!-- PANEL ADMIN -->
-        <section id="view-admin-dashboard" class="hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Panel de Control CRM</h2>
-                <button id="btn-logout" class="text-sm text-red-600 font-semibold hover:underline">Cerrar Sesión</button>
-            </div>
+    </div>
 
-            <!-- Resumen de Ventas Diarias -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-800 mb-1">Día de Trabajo / Historial</h3>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-sm text-gray-500">Filtrar por fecha:</label>
-                        <input type="date" id="admin-date-filter" class="border border-gray-300 rounded p-1 text-sm bg-gray-50 outline-none focus:border-orange-500 font-semibold text-gray-700">
-                    </div>
-                </div>
-                <div class="flex space-x-6 w-full md:w-auto bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <div class="text-right">
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Boletos (Aceptados)</p>
-                        <p class="text-2xl font-bold text-blue-600" id="admin-summary-count">0</p>
-                    </div>
-                    <div class="border-l border-gray-200 mx-2"></div>
-                    <div class="text-right">
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ingresos del Día</p>
-                        <p class="text-2xl font-bold text-green-600" id="admin-summary-total">0 Bs</p>
-                    </div>
-                </div>
-            </div>
+    <!-- PLANTILLA OCULTA PARA GENERAR EL PDF -->
+    <div id="plantilla-pdf" style="display: none; padding: 25px; font-family: Arial, sans-serif; color: #111;">
+        <div style="text-align: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 20px; text-transform: uppercase;">TRANSPORTE "LIRUJHAN"</h1>
+            <h3 style="margin: 4px 0 0 0; font-size: 13px; color: #444; text-transform: uppercase;">Resumen Diario de Cuentas y Planilla de Pasajeros</h3>
+            <p style="margin: 4px 0 0 0; font-size: 11px; font-weight: bold;">FECHA: <span id="pdf-fecha">--/--/----</span></p>
+        </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 h-fit">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Nuevo Horario (Extra)</h3>
-                    <p class="text-xs text-gray-500 mb-4">Los horarios fijos diarios se generan solos. Usa esto solo para salidas especiales.</p>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruta Principal</label>
-                            <select id="new-route" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
-                                <option value="Pozo Cavado">Pozo Cavado</option>
-                                <option value="Todo Santos">Todo Santos</option>
-                                <option value="Uyuni">Uyuni</option>
-                            </select>
+        <!-- Bloque donde se insertan las unidades/buses dinámicamente -->
+        <div id="pdf-bloque-buses"></div>
+
+        <hr style="border: 0; border-top: 1px dashed #999; margin: 20px 0 15px 0;">
+
+        <!-- Resumen Económico -->
+        <div style="width: 55%; float: right; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 4px; font-weight: bold;">Total Ventas Pasajes:</td>
+                    <td style="text-align: right; padding: 4px;">Bs. <span id="pdf-total-pasajes">0.00</span></td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px; font-weight: bold;">Otros Ingresos (Encomiendas/Carga):</td>
+                    <td style="text-align: right; padding: 4px;">Bs. <span id="pdf-otros-ingresos">0.00</span></td>
+                </tr>
+                <tr style="border-top: 2px solid #000; font-size: 13px; font-weight: bold;">
+                    <td style="padding: 6px 4px;">TOTAL RECAUDADO DÍA:</td>
+                    <td style="text-align: right; padding: 6px 4px;">Bs. <span id="pdf-total-general">0.00</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="clear: both;"></div>
+    </div>
+
+    <!-- Script Principal -->
+    <script>
+        // Registros de ejemplo (se conectan a tu base de datos)
+        let reservas = [
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 1, pasajero: "Pamela", destino: "T.B.", tarifa: 20, fecha: "2026-07-22" },
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 2, pasajero: "Ximena", destino: "P.C.", tarifa: 15, fecha: "2026-07-22" },
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 9, pasajero: "Andronic", destino: "P.C.", tarifa: 15, fecha: "2026-07-22" },
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 10, pasajero: "Donaire", destino: "P.C.", tarifa: 15, fecha: "2026-07-22" },
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 13, pasajero: "Luisa", destino: "P.C.", tarifa: 15, fecha: "2026-07-22" },
+            { bus: "EL HERBIE", chofer: "Sabino", hora: "16:00", asiento: 14, pasajero: "Inocencio", destino: "T.B.", tarifa: 20, fecha: "2026-07-22" }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('fecha-planilla').value = hoy;
+            renderizarMapaAsientos();
+        });
+
+        function toggleAdminPanel() {
+            const adminPanel = document.getElementById('vista-admin');
+            adminPanel.classList.toggle('hidden');
+        }
+
+        function renderizarMapaAsientos() {
+            const contenedor = document.getElementById('mapa-asientos');
+            contenedor.innerHTML = '';
+            
+            for (let i = 1; i <= 14; i++) {
+                const ocupado = reservas.some(r => r.asiento === i);
+                const btn = document.createElement('button');
+                btn.className = `p-3 font-bold rounded-lg text-xs shadow ${
+                    ocupado ? 'bg-red-500 text-white cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`;
+                btn.innerText = `Nº ${i}\n${ocupado ? 'Ocupado' : 'Libre'}`;
+                contenedor.appendChild(btn);
+            }
+        }
+
+        function generarYDescargarPlanillaPDF() {
+            const fechaSeleccionada = document.getElementById('fecha-planilla').value;
+            if (!fechaSeleccionada) {
+                alert("Por favor selecciona una fecha.");
+                return;
+            }
+
+            // Formatear fecha
+            const partes = fechaSeleccionada.split('-');
+            const fechaFormateada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+            document.getElementById('pdf-fecha').innerText = fechaFormateada;
+
+            const otrosIngresos = parseFloat(document.getElementById('input-otros-ingresos').value) || 0;
+
+            // Filtrar reservas por la fecha seleccionada
+            const ventasDia = reservas.filter(r => r.fecha === fechaSeleccionada);
+
+            // Agrupar por Bus / Salida
+            const salidasAgrupadas = {};
+            let totalPasajesGlobal = 0;
+
+            ventasDia.forEach(r => {
+                const clave = `${r.bus}_${r.hora}`;
+                if (!salidasAgrupadas[clave]) {
+                    salidasAgrupadas[clave] = {
+                        bus: r.bus,
+                        chofer: r.chofer || 'No asignado',
+                        hora: r.hora,
+                        pasajeros: [],
+                        subtotal: 0
+                    };
+                }
+                salidasAgrupadas[clave].pasajeros.push(r);
+                salidasAgrupadas[clave].subtotal += parseFloat(r.tarifa || 0);
+                totalPasajesGlobal += parseFloat(r.tarifa || 0);
+            });
+
+            // Renderizar Bloques en el HTML oculto
+            const contenedorBuses = document.getElementById('pdf-bloque-buses');
+            contenedorBuses.innerHTML = '';
+
+            Object.values(salidasAgrupadas).forEach(salida => {
+                salida.pasajeros.sort((a, b) => a.asiento - b.asiento);
+
+                let filas = '';
+                salida.pasajeros.forEach(p => {
+                    filas += `
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 4px; text-align: center;">${p.asiento}</td>
+                            <td style="border: 1px solid #ccc; padding: 4px;">${p.pasajero}</td>
+                            <td style="border: 1px solid #ccc; padding: 4px; text-align: center;">${p.destino}</td>
+                            <td style="border: 1px solid #ccc; padding: 4px; text-align: right;">${parseFloat(p.tarifa).toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                contenedorBuses.innerHTML += `
+                    <div style="margin-bottom: 18px;">
+                        <div style="background-color: #f0f0f0; padding: 5px 8px; font-weight: bold; border: 1px solid #ccc; font-size: 11px; display: flex; justify-content: space-between;">
+                            <span>UNIDAD: ${salida.bus} | CHOFER: ${salida.chofer}</span>
+                            <span>HORA SALIDA: ${salida.hora}</span>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha y Hora</label>
-                            <input type="datetime-local" id="new-datetime" class="w-full border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none">
-                        </div>
-                        <button id="btn-create-schedule" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Crear Horario Extra</button>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 md:col-span-2">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 gap-2">
-                        <h3 class="text-lg font-bold text-gray-800">Lista de Pasajeros</h3>
-                        <select id="admin-schedule-filter" class="border-gray-300 rounded-lg p-2 bg-gray-50 border outline-none text-sm w-full sm:w-auto font-semibold">
-                            <option value="">Selecciona un horario...</option>
-                        </select>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-gray-50 text-gray-600">
-                                <tr>
-                                    <th class="px-4 py-3">Asientos</th>
-                                    <th class="px-4 py-3">Pasajero</th>
-                                    <th class="px-4 py-3">CI</th>
-                                    <th class="px-4 py-3">Destino</th>
-                                    <th class="px-4 py-3">Total</th>
-                                    <th class="px-4 py-3">Estado</th>
-                                    <th class="px-4 py-3">Acciones</th>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 2px;">
+                            <thead>
+                                <tr style="background-color: #fafafa;">
+                                    <th style="border: 1px solid #ccc; padding: 4px; width: 12%; text-align: center;">Asiento</th>
+                                    <th style="border: 1px solid #ccc; padding: 4px; width: 48%;">Pasajero</th>
+                                    <th style="border: 1px solid #ccc; padding: 4px; width: 20%; text-align: center;">Destino</th>
+                                    <th style="border: 1px solid #ccc; padding: 4px; width: 20%; text-align: right;">Monto (Bs)</th>
                                 </tr>
                             </thead>
-                            <tbody id="manifest-body"></tbody>
+                            <tbody>${filas}</tbody>
                         </table>
+                        <div style="text-align: right; font-weight: bold; font-size: 10px; margin-top: 3px;">
+                            Subtotal Unidad: Bs. ${salida.subtotal.toFixed(2)}
+                        </div>
                     </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- MODAL DE MENSAJES -->
-    <div id="custom-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all" id="modal-content">
-            <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
-            <p id="modal-msg" class="text-gray-600 mb-6"></p>
-            <div class="flex justify-end space-x-3" id="modal-actions">
-                <button id="modal-btn-cancel" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium hidden">Cancelar</button>
-                <button id="modal-btn-ok" class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 rounded-lg font-medium">Aceptar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE QR -->
-    <div id="qr-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center">
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Pago por QR</h3>
-            <p class="text-sm text-gray-600 mb-4">Escanea el código para pagar <span id="qr-total" class="font-bold text-orange-600"></span></p>
-            
-            <!-- AQUÍ SE INSERTA LA IMAGEN REAL DEL QR DEL REPOSITORIO -->
-            <img src="qr-pago.png" alt="QR de Pago Lirujhan" class="w-48 h-48 mx-auto mb-4 border rounded-lg shadow-sm object-contain bg-white">
-            
-            <p class="text-xs text-gray-500 mb-6 bg-yellow-50 p-2 rounded border border-yellow-100">
-                ⚠️ IMPORTANTE: Al confirmar, tu reserva quedará en estado <b>Pendiente</b> hasta que el administrador verifique el pago.
-            </p>
-            
-            <div class="flex flex-col space-y-3">
-                <button id="qr-btn-confirm" class="w-full bg-green-600 text-white hover:bg-green-700 rounded-lg font-bold py-3 transition shadow-lg flex justify-center items-center">
-                    Ya pagué, reservar asientos
-                </button>
-                <button id="qr-btn-cancel" class="w-full text-gray-500 hover:bg-gray-100 rounded-lg font-medium py-2 transition">Volver atrás</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE RECIBO DESCARGADO (Solo para Pasajero) -->
-    <div id="receipt-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center">
-            <h3 class="text-xl font-bold text-gray-900 mb-2">¡Recibo Generado!</h3>
-            <p class="text-sm text-gray-600 mb-6">Tu recibo ha sido descargado exitosamente. Puedes descargar copias adicionales en cualquier momento.</p>
-            
-            <div class="flex flex-col space-y-3">
-                <button id="receipt-download-again" class="w-full bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold py-3 transition shadow-lg flex justify-center items-center">
-                    📥 Descargar Nuevamente
-                </button>
-                <button id="receipt-btn-close" class="w-full text-gray-500 hover:bg-gray-100 rounded-lg font-medium py-2 transition">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-
-        // === CONFIGURACIÓN FIREBASE ===
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } else {
-            firebaseConfig = {
-                apiKey: "AIzaSyCVKYWyf38Wa6t7unYKfasGBG3N39mq2gA",
-                authDomain: "lirujhan-app.firebaseapp.com",
-                projectId: "lirujhan-app",
-                storageBucket: "lirujhan-app.firebasestorage.app",
-                messagingSenderId: "747445110980",
-                appId: "1:747445110980:web:69ce8410d0dbfe50f3e191",
-                measurementId: "G-XHVY58GF5Z"
-            };
-        }
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        const isCanvas = typeof __app_id !== 'undefined';
-        const appId = isCanvas ? __app_id : 'lirujhan-app';
-        function getColRef(colName) {
-            if (isCanvas) return collection(db, 'artifacts', appId, 'public', 'data', colName);
-            return collection(db, colName);
-        }
-
-        function getLocalDateStr() {
-            const d = new Date();
-            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-            return d.toISOString().split('T')[0];
-        }
-
-        const DAILY_SCHEDULES = ['06:30', '07:00', '14:00', '15:00', '16:00', '17:30', '18:00'];
-        const TOTAL_SEATS = 14; 
-
-        const state = {
-            schedules: [],
-            tickets: [],
-            selectedRoute: '',
-            selectedScheduleId: '',
-            selectedDestination: '',
-            destinationPrice: 0,
-            selectedSeats: [],
-            passengerSelectedDate: getLocalDateStr(), 
-            adminSelectedScheduleId: '',
-            adminSelectedDate: getLocalDateStr(), 
-            user: null,
-            isAdmin: false,
-            lastReservation: null // Para guardar la última reserva del pasajero
-        };
-
-        const els = {
-            viewPassenger: document.getElementById('view-passenger'),
-            viewAdminLogin: document.getElementById('view-admin-login'),
-            viewAdminDash: document.getElementById('view-admin-dashboard'),
-            navPassenger: document.getElementById('nav-passenger'),
-            navAdmin: document.getElementById('nav-admin'),
-            connectionStatus: document.getElementById('connection-status'),
-
-            pDate: document.getElementById('p-date'),
-            pRoute: document.getElementById('p-route'),
-            pSchedule: document.getElementById('p-schedule'),
-            pDestination: document.getElementById('p-destination'),
-            seatMapContainer: document.getElementById('p-seat-map-container'),
-            seatGrid: document.getElementById('seat-grid'),
-            pName: document.getElementById('p-name'),
-            pCi: document.getElementById('p-ci'),
-            pTotal: document.getElementById('p-total'),
-            btnReserve: document.getElementById('p-btn-reserve'),
-
-            adminEmail: document.getElementById('a-email'),
-            adminPass: document.getElementById('a-pass'),
-            btnLogin: document.getElementById('btn-login'),
-            btnLogout: document.getElementById('btn-logout'),
-            
-            adminDateFilter: document.getElementById('admin-date-filter'),
-            adminSummaryCount: document.getElementById('admin-summary-count'),
-            adminSummaryTotal: document.getElementById('admin-summary-total'),
-            adminScheduleFilter: document.getElementById('admin-schedule-filter'),
-            
-            manifestBody: document.getElementById('manifest-body'),
-            newRoute: document.getElementById('new-route'),
-            newDatetime: document.getElementById('new-datetime'),
-            btnCreateSchedule: document.getElementById('btn-create-schedule'),
-
-            qrModal: document.getElementById('qr-modal'),
-            qrTotal: document.getElementById('qr-total'),
-            qrBtnConfirm: document.getElementById('qr-btn-confirm'),
-            qrBtnCancel: document.getElementById('qr-btn-cancel'),
-
-            receiptModal: document.getElementById('receipt-modal'),
-            receiptDownloadAgain: document.getElementById('receipt-download-again'),
-            receiptBtnClose: document.getElementById('receipt-btn-close')
-        };
-
-        async function init() {
-            els.adminDateFilter.value = state.adminSelectedDate;
-            els.pDate.value = state.passengerSelectedDate;
-            els.pDate.min = getLocalDateStr(); 
-
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    if(!auth.currentUser) {
-                        await signInAnonymously(auth);
-                    }
-                }
-            } catch (error) {
-                console.error("Error auth:", error);
-                updateConnectionStatus('error_auth');
-            }
-        }
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                state.user = user;
-                state.isAdmin = !user.isAnonymous; 
-                setupRealtimeListeners();
-                
-                if (state.isAdmin && els.viewAdminDash.classList.contains('hidden')) {
-                     switchView('admin-dash');
-                }
-            }
-        });
-
-        function setupRealtimeListeners() {
-            onSnapshot(getColRef('horarios'), (snapshot) => {
-                state.schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-                updateScheduleDropdowns();
-                updateConnectionStatus('success');
-            }, (error) => {
-                console.error("Error horarios:", error);
-                updateConnectionStatus('error_rules');
-            });
-
-            onSnapshot(getColRef('boletos'), (snapshot) => {
-                state.tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderSeatMap();
-                updateScheduleDropdowns(); 
-                renderManifest();
-                updateDailySummary();
-            }, (error) => {
-                console.error("Error boletos:", error);
-                updateConnectionStatus('error_rules');
-            });
-        }
-
-        function updateConnectionStatus(status) {
-            if (!els.connectionStatus) return;
-            if (status === 'success') {
-                els.connectionStatus.innerText = '🟢 Conectado';
-                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-green-500/20 text-green-100 text-xs rounded border border-green-400/50';
-            } else if (status === 'error_rules') {
-                els.connectionStatus.innerText = '🔴 Error Base Datos';
-                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-red-500/20 text-red-100 text-xs rounded border border-red-400/50';
-            } else if (status === 'error_auth') {
-                els.connectionStatus.innerText = '🔴 Error Autenticación';
-                els.connectionStatus.className = 'hidden md:block px-2 py-1 bg-red-500/20 text-red-100 text-xs rounded border border-red-400/50';
-            }
-        }
-
-        function formatDate(isoString) {
-            const d = new Date(isoString);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        }
-
-        function switchView(view) {
-            els.viewPassenger.classList.add('hidden');
-            els.viewAdminLogin.classList.add('hidden');
-            els.viewAdminDash.classList.add('hidden');
-            
-            if (view === 'passenger') els.viewPassenger.classList.remove('hidden');
-            if (view === 'admin-login') els.viewAdminLogin.classList.remove('hidden');
-            if (view === 'admin-dash') els.viewAdminDash.classList.remove('hidden');
-        }
-
-        els.navPassenger.addEventListener('click', () => switchView('passenger'));
-        els.navAdmin.addEventListener('click', () => switchView(state.user && state.isAdmin ? 'admin-dash' : 'admin-login'));
-
-        // === PASAJERO: EVENTOS ===
-        
-        // CORRECCIÓN PRINCIPAL: Limpieza Forzada al cambiar fecha o ruta
-        els.pDate.addEventListener('change', (e) => {
-            state.passengerSelectedDate = e.target.value;
-            // Limpia por completo la memoria del sistema
-            state.selectedScheduleId = '';
-            state.selectedRoute = '';
-            state.selectedDestination = '';
-            state.selectedSeats = [];
-            
-            els.pRoute.value = '';
-            els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
-            els.pSchedule.disabled = true;
-            els.pDestination.value = '';
-            els.pDestination.disabled = true;
-            els.seatMapContainer.classList.add('hidden');
-            
-            updateScheduleDropdowns();
-        });
-
-        els.pRoute.addEventListener('change', (e) => {
-            state.selectedRoute = e.target.value;
-            // Limpia por completo la memoria del minibús anterior
-            state.selectedScheduleId = '';
-            state.selectedDestination = '';
-            state.selectedSeats = [];
-            
-            els.pSchedule.value = '';
-            els.pSchedule.disabled = !state.selectedRoute;
-            els.pDestination.value = "";
-            els.pDestination.disabled = true;
-            els.seatMapContainer.classList.add('hidden');
-            
-            updateScheduleDropdowns();
-        });
-
-        els.pSchedule.addEventListener('change', (e) => {
-            state.selectedScheduleId = e.target.value;
-            state.selectedSeats = []; // Reiniciamos los asientos al cambiar de horario
-            els.pDestination.disabled = !state.selectedScheduleId;
-            els.pDestination.value = "";
-            els.seatMapContainer.classList.add('hidden');
-            renderSeatMap();
-        });
-
-        els.pDestination.addEventListener('change', (e) => {
-            if(!e.target.value) {
-                els.seatMapContainer.classList.add('hidden');
-                return;
-            }
-            const [destName, price] = e.target.value.split('_');
-            state.selectedDestination = destName;
-            state.destinationPrice = parseInt(price);
-            els.seatMapContainer.classList.remove('hidden');
-            updateTotal();
-        });
-
-        function updateScheduleDropdowns() {
-            if (!state.selectedRoute) {
-                els.pSchedule.innerHTML = '<option value="">Primero selecciona una ruta...</option>';
-            } else {
-                const targetDate = state.passengerSelectedDate || getLocalDateStr();
-                const isToday = targetDate === getLocalDateStr();
-                const dayLabel = isToday ? '(Hoy)' : `(${targetDate})`;
-
-                const fixedOptions = DAILY_SCHEDULES.map(time => {
-                    return `<option value="FIJO_${state.selectedRoute}_${targetDate}_${time}">${time} ${dayLabel}</option>`;
-                });
-
-                const extraOptions = state.schedules
-                    .filter(s => s.route === state.selectedRoute && s.datetime.startsWith(targetDate))
-                    .map(s => `<option value="${s.id}">${formatDate(s.datetime)} (Extra)</option>`);
-                
-                els.pSchedule.innerHTML = '<option value="">Selecciona un horario...</option>' + fixedOptions.join('') + extraOptions.join('');
-                if(state.selectedScheduleId) els.pSchedule.value = state.selectedScheduleId;
-            }
-
-            const targetAdminDate = state.adminSelectedDate; 
-            const ticketScheduleIds = [...new Set(state.tickets.map(t => t.scheduleId))];
-            
-            const aOptions = [];
-            
-            ticketScheduleIds.forEach(id => {
-                let belongsToDate = false;
-                let label = id;
-
-                if (id.startsWith('FIJO_') && id.includes(targetAdminDate)) {
-                    belongsToDate = true;
-                    const parts = id.split('_'); 
-                    label = `${parts[1]} a las ${parts[3]}`;
-                } else {
-                    const s = state.schedules.find(x => x.id === id);
-                    if (s && s.datetime.startsWith(targetAdminDate)) {
-                        belongsToDate = true;
-                        label = `${s.route} - ${formatDate(s.datetime)} (Extra)`;
-                    }
-                }
-
-                if (belongsToDate) {
-                    aOptions.push(`<option value="${id}">🔵 ${label} (Con reservas)</option>`);
-                }
-            });
-
-            ['Pozo Cavado', 'Todo Santos', 'Uyuni'].forEach(route => {
-                DAILY_SCHEDULES.forEach(time => {
-                    const fixedId = `FIJO_${route}_${targetAdminDate}_${time}`;
-                    if (!ticketScheduleIds.includes(fixedId)) {
-                        aOptions.push(`<option value="${fixedId}">⚪ ${route} a las ${time} (Vacío)</option>`);
-                    }
-                });
-            });
-
-            state.schedules.forEach(s => {
-                if (s.datetime.startsWith(targetAdminDate) && !ticketScheduleIds.includes(s.id)) {
-                    aOptions.push(`<option value="${s.id}">⚪ ${s.route} - ${formatDate(s.datetime)} (Extra vacío)</option>`);
-                }
-            });
-
-            els.adminScheduleFilter.innerHTML = '<option value="">Selecciona un horario de esta fecha...</option>' + aOptions.join('');
-            if(state.adminSelectedScheduleId) els.adminScheduleFilter.value = state.adminSelectedScheduleId;
-        }
-
-        function renderSeatMap() {
-            if (!state.selectedScheduleId) return;
-            
-            const occupiedSeats = state.tickets
-                .filter(t => t.scheduleId === state.selectedScheduleId)
-                .flatMap(t => t.seats);
-
-            els.seatGrid.innerHTML = '';
-            
-            // Definición del orden de los asientos según el diagrama (5 filas, 4 columnas)
-            const seatLayout = [
-                [null, null, 13, 14],
-                [3, 4, null, null],
-                [5, 6, null, 1],
-                [7, 8, null, 2],
-                [9, 10, 11, 12]
-            ];
-
-            // Itera sobre la matriz para generar el mapa de asientos
-            for (let row = 0; row < 5; row++) {
-                for (let col = 0; col < 4; col++) {
-                    const i = seatLayout[row][col];
-                    const div = document.createElement('div');
-
-                    if (i === null) {
-                        // Si es el primer cuadro (arriba a la izquierda), colocamos al conductor
-                        if (row === 0 && col === 0) {
-                            div.innerHTML = `
-                                <div class="flex items-center justify-center h-full text-gray-400" title="Conductor">
-                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                            `;
-                        } else {
-                            // Espacio vacío (pasillo u otro rincón)
-                            div.innerHTML = '<div class="h-12"></div>'; 
-                        }
-                    } else {
-                        const isOccupied = occupiedSeats.includes(i);
-                        const isSelected = state.selectedSeats.includes(i);
-                        
-                        if (isOccupied) {
-                            div.innerHTML = `<div class="seat-label seat-occupied">${i}</div>`;
-                        } else {
-                            div.innerHTML = `
-                                <input type="checkbox" id="seat-${i}" value="${i}" class="seat-checkbox" ${isSelected ? 'checked' : ''}>
-                                <label for="seat-${i}" class="seat-label">${i}</label>
-                            `;
-                            
-                            div.querySelector('input').addEventListener('change', (e) => {
-                                const seatNum = parseInt(e.target.value);
-                                if (e.target.checked) {
-                                    state.selectedSeats.push(seatNum);
-                                } else {
-                                    state.selectedSeats = state.selectedSeats.filter(s => s !== seatNum);
-                                }
-                                updateTotal();
-                            });
-                        }
-                    }
-                    els.seatGrid.appendChild(div);
-                }
-            }
-        }
-
-        function updateTotal() {
-            const total = state.selectedSeats.length * state.destinationPrice;
-            els.pTotal.innerText = `${total} Bs`;
-        }
-
-        // === FUNCIONES PARA GENERAR PDF ===
-        function generateReceiptPDF(ticketData, isAdmin = false) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            // Colores
-            const primaryColor = [249, 115, 22]; // orange-500
-            const textColor = [31, 41, 55]; // gray-800
-            const lightGray = [243, 244, 246]; // gray-100
-
-            // Encabezado
-            doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 30, 'F');
-            
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
-            doc.text('Trans. LIRUJHAN', 15, 18);
-            
-            doc.setTextColor(...textColor);
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text('Recibo de Reserva de Asientos', 15, 26);
-
-            // Información del recibo
-            let yPos = 40;
-            
-            doc.setTextColor(...textColor);
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text('INFORMACIÓN DEL PASAJERO:', 15, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            doc.text(`Nombre: ${ticketData.passengerName}`, 15, yPos);
-            yPos += 6;
-            doc.text(`Carnet de Identidad (CI): ${ticketData.ci}`, 15, yPos);
-            yPos += 6;
-            doc.text(`Estado: ${ticketData.status === 'aceptado' ? '✓ ACEPTADO' : ticketData.status === 'pendiente' ? '⏳ PENDIENTE' : ticketData.status}`, 15, yPos);
-            yPos += 10;
-
-            doc.setFont(undefined, 'bold');
-            doc.text('DETALLES DEL VIAJE:', 15, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            
-            // Obtener información del horario
-            let routeInfo = '';
-            let dateInfo = '';
-            if (ticketData.scheduleId.startsWith('FIJO_')) {
-                const parts = ticketData.scheduleId.split('_');
-                routeInfo = `${parts[1]} a las ${parts[3]}`;
-                dateInfo = parts[2];
-            } else {
-                const schedule = state.schedules.find(s => s.id === ticketData.scheduleId);
-                if (schedule) {
-                    routeInfo = schedule.route;
-                    dateInfo = formatDate(schedule.datetime);
-                }
-            }
-            
-            doc.text(`Ruta: ${routeInfo}`, 15, yPos);
-            yPos += 6;
-            doc.text(`Fecha/Hora: ${dateInfo}`, 15, yPos);
-            yPos += 6;
-            doc.text(`Destino Final: ${ticketData.destination}`, 15, yPos);
-            yPos += 10;
-
-            doc.setFont(undefined, 'bold');
-            doc.text('ASIENTOS RESERVADOS:', 15, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            doc.text(`Asientos: ${ticketData.seats.join(', ')}`, 15, yPos);
-            yPos += 6;
-            doc.text(`Cantidad: ${ticketData.seats.length}`, 15, yPos);
-            yPos += 10;
-
-            // Resumen de pago
-            doc.setFillColor(...lightGray);
-            doc.rect(15, yPos, 180, 20, 'F');
-            
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(...primaryColor);
-            doc.text(`Total a Pagar: ${ticketData.total} Bs`, 100, yPos + 10, { align: 'right' });
-            
-            yPos += 25;
-
-            // Nota importante
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(220, 38, 38); // red-600
-            doc.text('IMPORTANTE:', 15, yPos);
-            yPos += 4;
-            doc.setTextColor(107, 114, 128); // gray-600
-            doc.text('Si el estado es "PENDIENTE", el administrador verificará el pago y', 15, yPos);
-            yPos += 3;
-            doc.text('confirmará la reserva. Guarda este recibo como prueba de tu reserva.', 15, yPos);
-
-            // Pie de página
-            doc.setTextColor(156, 163, 175); // gray-400
-            doc.setFontSize(7);
-            const pageHeight = doc.internal.pageSize.getHeight();
-            doc.text(`Generado: ${new Date().toLocaleString()}`, 15, pageHeight - 10);
-            doc.text(`Sistema de Reservas LIRUJHAN © 2025`, 195, pageHeight - 10, { align: 'right' });
-
-            return doc;
-        }
-
-        function downloadReceiptPDF(ticketData, fileName = null) {
-            const doc = generateReceiptPDF(ticketData);
-            const filename = fileName || `Recibo_${ticketData.passengerName.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
-            doc.save(filename);
-        }
-
-        // === PASAJERO: DESCARGAR RECIBO ===
-        els.btnReserve.addEventListener('click', () => {
-            if (state.selectedSeats.length === 0) return showModal('Error', 'Debes seleccionar al menos un asiento.');
-            if (!els.pName.value.trim() || !els.pCi.value.trim()) return showModal('Error', 'Llena tus datos (Nombre y CI).');
-            
-            els.qrTotal.innerText = `${state.selectedSeats.length * state.destinationPrice} Bs`;
-            els.qrModal.classList.remove('hidden');
-        });
-
-        els.qrBtnCancel.addEventListener('click', () => els.qrModal.classList.add('hidden'));
-
-        els.qrBtnConfirm.addEventListener('click', async () => {
-            const total = state.selectedSeats.length * state.destinationPrice;
-            const btnOriginalText = els.qrBtnConfirm.innerHTML;
-            els.qrBtnConfirm.innerHTML = '<div class="loader"></div>';
-            els.qrBtnConfirm.disabled = true;
-
-            try {
-                const docRef = await addDoc(getColRef('boletos'), {
-                    scheduleId: state.selectedScheduleId,
-                    seats: state.selectedSeats,
-                    passengerName: els.pName.value.trim(),
-                    ci: els.pCi.value.trim(),
-                    destination: state.selectedDestination,
-                    total: total,
-                    status: 'pendiente', 
-                    timestamp: new Date().toISOString()
-                });
-
-                // Guardar los datos de la reserva para el modal de recibo
-                state.lastReservation = {
-                    id: docRef.id,
-                    scheduleId: state.selectedScheduleId,
-                    seats: state.selectedSeats,
-                    passengerName: els.pName.value.trim(),
-                    ci: els.pCi.value.trim(),
-                    destination: state.selectedDestination,
-                    total: total,
-                    status: 'pendiente'
-                };
-
-                els.qrModal.classList.add('hidden');
-                
-                state.selectedSeats = [];
-                els.pName.value = '';
-                els.pCi.value = '';
-                els.pRoute.value = '';
-                els.pSchedule.value = '';
-                els.pDestination.value = '';
-                els.pSchedule.disabled = true;
-                els.pDestination.disabled = true;
-                els.seatMapContainer.classList.add('hidden');
-                
-                // Mostrar modal de recibo con opción de descargar
-                showReceiptModal();
-                
-            } catch (error) {
-                console.error("Error guardando reserva:", error);
-                showModal('Error', 'Hubo un problema al guardar la reserva.');
-            } finally {
-                els.qrBtnConfirm.innerHTML = btnOriginalText;
-                els.qrBtnConfirm.disabled = false;
-            }
-        });
-
-        function showReceiptModal() {
-            els.receiptModal.classList.remove('hidden');
-            
-            // Descargar automáticamente al mostrar el modal
-            if (state.lastReservation) {
-                setTimeout(() => {
-                    downloadReceiptPDF(state.lastReservation);
-                }, 500);
-            }
-        }
-
-        els.receiptDownloadAgain.addEventListener('click', () => {
-            if (state.lastReservation) {
-                downloadReceiptPDF(state.lastReservation);
-            }
-        });
-
-        els.receiptBtnClose.addEventListener('click', () => {
-            els.receiptModal.classList.add('hidden');
-        });
-
-        els.btnLogin.addEventListener('click', async () => {
-            const email = els.adminEmail.value;
-            const password = els.adminPass.value;
-            const btnOriginalText = els.btnLogin.innerHTML;
-            
-            if (!email || !password) return showModal('Error', 'Por favor, ingresa correo y contraseña.');
-
-            els.btnLogin.innerHTML = '<div class="loader mx-auto border-white border-top-gray-400"></div>';
-            els.btnLogin.disabled = true;
-
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                state.isAdmin = true;
-                switchView('admin-dash');
-            } catch (error) {
-                console.error("Error de login admin:", error);
-                showModal('Error', 'Credenciales incorrectas o usuario no registrado en Firebase.');
-            } finally {
-                els.btnLogin.innerHTML = btnOriginalText;
-                els.btnLogin.disabled = false;
-            }
-        });
-
-        els.btnLogout.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                state.isAdmin = false;
-                els.adminEmail.value = '';
-                els.adminPass.value = '';
-                await signInAnonymously(auth);
-                switchView('passenger');
-            } catch (error) {
-                console.error("Error al cerrar sesión:", error);
-            }
-        });
-
-        els.adminDateFilter.addEventListener('change', (e) => {
-            state.adminSelectedDate = e.target.value;
-            state.adminSelectedScheduleId = ''; 
-            updateScheduleDropdowns();
-            renderManifest();
-            updateDailySummary();
-        });
-
-        function updateDailySummary() {
-            let totalBs = 0;
-            let totalTickets = 0;
-            const targetDate = state.adminSelectedDate;
-
-            state.tickets.forEach(ticket => {
-                let belongsToDate = false;
-                if (ticket.scheduleId.startsWith('FIJO_') && ticket.scheduleId.includes(targetDate)) {
-                    belongsToDate = true;
-                } else {
-                    const s = state.schedules.find(x => x.id === ticket.scheduleId);
-                    if (s && s.datetime.startsWith(targetDate)) {
-                        belongsToDate = true;
-                    }
-                }
-
-                if (belongsToDate && ticket.status === 'aceptado') {
-                    totalTickets += ticket.seats.length;
-                    totalBs += ticket.total;
-                }
-            });
-
-            els.adminSummaryCount.innerText = totalTickets;
-            els.adminSummaryTotal.innerText = `${totalBs} Bs`;
-        }
-
-        els.adminScheduleFilter.addEventListener('change', (e) => {
-            state.adminSelectedScheduleId = e.target.value;
-            renderManifest();
-        });
-
-        function renderManifest() {
-            els.manifestBody.innerHTML = '';
-            if (!state.adminSelectedScheduleId) return;
-
-            const filteredTickets = state.tickets.filter(t => t.scheduleId === state.adminSelectedScheduleId);
-            
-            if (filteredTickets.length === 0) {
-                els.manifestBody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-gray-500">No hay reservas para este horario.</td></tr>';
-                return;
-            }
-
-            filteredTickets.forEach(ticket => {
-                const tr = document.createElement('tr');
-                tr.classList.add('border-b');
-                
-                let statusBadge = '';
-                let actionButtons = '';
-
-                if (ticket.status === 'pendiente') {
-                    statusBadge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold uppercase">Pendiente</span>`;
-                    actionButtons = `
-                        <div class="flex gap-2 flex-wrap">
-                            <button class="text-green-600 hover:text-green-800 text-xs font-bold border border-green-600 px-2 py-1 rounded" onclick="acceptTicket('${ticket.id}')">Aceptar</button>
-                            <button class="text-red-500 hover:text-red-700 text-xs font-bold border border-red-500 px-2 py-1 rounded" onclick="deleteTicket('${ticket.id}')">Rechazar</button>
-                            <button class="text-blue-600 hover:text-blue-800 text-xs font-bold border border-blue-600 px-2 py-1 rounded" onclick="downloadAdminPDF('${encodeURIComponent(JSON.stringify(ticket))}')">📥 PDF</button>
-                        </div>
-                    `;
-                } else if (ticket.status === 'aceptado') {
-                    statusBadge = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">Aceptado</span>`;
-                    actionButtons = `
-                        <div class="flex gap-2">
-                            <button class="text-blue-600 hover:text-blue-800 text-xs font-bold border border-blue-600 px-2 py-1 rounded" onclick="downloadAdminPDF('${encodeURIComponent(JSON.stringify(ticket))}')">📥 PDF</button>
-                        </div>
-                    `;
-                } else {
-                    statusBadge = `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">${ticket.status}</span>`;
-                }
-
-                tr.innerHTML = `
-                    <td class="px-4 py-3 font-semibold text-blue-600">${ticket.seats.join(', ')}</td>
-                    <td class="px-4 py-3">${ticket.passengerName}</td>
-                    <td class="px-4 py-3">${ticket.ci}</td>
-                    <td class="px-4 py-3">${ticket.destination}</td>
-                    <td class="px-4 py-3 font-bold">${ticket.total} Bs</td>
-                    <td class="px-4 py-3">${statusBadge}</td>
-                    <td class="px-4 py-3">${actionButtons}</td>
                 `;
-                els.manifestBody.appendChild(tr);
+            });
+
+            // Actualizar montos totales
+            const totalGeneral = totalPasajesGlobal + otrosIngresos;
+            document.getElementById('pdf-total-pasajes').innerText = totalPasajesGlobal.toFixed(2);
+            document.getElementById('pdf-otros-ingresos').innerText = otrosIngresos.toFixed(2);
+            document.getElementById('pdf-total-general').innerText = totalGeneral.toFixed(2);
+
+            // Exportar a PDF usando html2pdf
+            const elemento = document.getElementById('plantilla-pdf');
+            elemento.style.display = 'block';
+
+            const opciones = {
+                margin:       8,
+                filename:     `Planilla_Diaria_LIRUJHAN_${fechaSeleccionada}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save().then(() => {
+                elemento.style.display = 'none';
             });
         }
-
-        window.acceptTicket = async (id) => {
-            if(confirm('¿Confirmas que recibiste el pago? El boleto pasará a estado ACEPTADO y no podrá eliminarse.')) {
-                try {
-                    await updateDoc(doc(getColRef('boletos'), id), { status: 'aceptado' });
-                } catch (error) {
-                    console.error("Error al aceptar", error);
-                    showModal('Error', 'No se pudo aceptar la reserva.');
-                }
-            }
-        };
-
-        window.deleteTicket = async (id) => {
-            if(confirm('¿Estás seguro de RECHAZAR esta reserva? Los asientos se liberarán inmediatamente para otros pasajeros.')) {
-                try {
-                    await deleteDoc(doc(getColRef('boletos'), id));
-                } catch (error) {
-                    console.error("Error al rechazar", error);
-                    showModal('Error', 'No se pudo rechazar la reserva.');
-                }
-            }
-        };
-
-        window.downloadAdminPDF = (encodedTicket) => {
-            try {
-                const ticket = JSON.parse(decodeURIComponent(encodedTicket));
-                downloadReceiptPDF(ticket, `Recibo_${ticket.passengerName.replace(/\s+/g, '_')}_${ticket.id}.pdf`);
-            } catch (error) {
-                console.error("Error descargando PDF:", error);
-                showModal('Error', 'No se pudo descargar el recibo.');
-            }
-        };
-
-        els.btnCreateSchedule.addEventListener('click', async () => {
-            const route = els.newRoute.value;
-            const datetime = els.newDatetime.value;
-            
-            if (!datetime) return showModal('Error', 'Selecciona una fecha y hora.');
-
-            try {
-                await addDoc(getColRef('horarios'), { route, datetime });
-                showModal('Éxito', 'Horario extra creado correctamente.');
-                els.newDatetime.value = '';
-            } catch (error) {
-                showModal('Error', 'No se pudo crear el horario.');
-            }
-        });
-
-        function showModal(title, msg) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-msg').innerText = msg;
-            document.getElementById('custom-modal').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('modal-content').classList.remove('scale-95', 'opacity-0');
-            }, 10);
-        }
-
-        document.getElementById('modal-btn-ok').addEventListener('click', () => {
-            document.getElementById('modal-content').classList.add('scale-95', 'opacity-0');
-            setTimeout(() => {
-                document.getElementById('custom-modal').classList.add('hidden');
-            }, 200);
-        });
-
-        init();
     </script>
 </body>
 </html>

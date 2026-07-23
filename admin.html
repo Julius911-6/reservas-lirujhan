@@ -50,38 +50,6 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN DE ASIENTO BLOQUEADO -->
-  <div id="modal-editar-asiento" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 hidden">
-    <div class="bg-white p-5 rounded-xl shadow-xl max-w-sm w-full">
-      <h3 class="text-md font-bold text-gray-900 mb-2 border-b pb-2 flex justify-between items-center">
-        <span>✏️ Modificar Asiento <span id="edit-num-asiento" class="text-red-600 font-black"></span></span>
-        <button onclick="cerrarModalEditar()" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-      </h3>
-      
-      <p id="edit-info-pasajero" class="text-xs font-semibold text-gray-600 mb-4"></p>
-
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="block font-bold mb-1 text-gray-700">Mover a otro asiento libre:</label>
-          <select id="select-nuevo-asiento" class="w-full border p-2 rounded bg-gray-50 font-bold">
-            <!-- Opciones dinámicas -->
-          </select>
-          <button onclick="confirmarMoverAsiento()" class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition">
-            🔄 Cambiar de Asiento
-          </button>
-        </div>
-
-        <hr class="my-2">
-
-        <div>
-          <button onclick="confirmarEliminarPasajero()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded transition">
-            🗑️ Eliminar / Vaciar Asiento
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- PANEL PRINCIPAL DE ADMINISTRACIÓN -->
   <div id="panel-admin" class="max-w-4xl mx-auto space-y-6 hidden">
 
@@ -244,7 +212,6 @@
     document.getElementById('fecha-bus').valueAsDate = new Date();
 
     let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
-    let asientoEnEdicion = null;
 
     function verificarPIN() {
       const input = document.getElementById('pin-input').value;
@@ -284,9 +251,9 @@
               <input type="number" id="precio-${num}" placeholder="Bs" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
-          <div id="btn-edit-container-${num}" class="hidden mt-1 text-center">
-            <button onclick="abrirModalEditar(${num})" class="text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded w-full transition">
-              ✏️ Editar / Mover
+          <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
+            <button onclick="liberarAsiento(${num})" class="text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold py-0.5 px-2 rounded uppercase shadow transition">
+              ✏️ Editar / Liberar
             </button>
           </div>
         </div>
@@ -297,7 +264,7 @@
       const fecha = obtenerFechaActual();
       const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
 
-      // Renderizar casilleros
+      // Renderizar casilleros limpios
       for (let i = 1; i <= 14; i++) {
         const target = document.getElementById(`asiento-box-${i}`);
         if (target) {
@@ -305,13 +272,13 @@
         }
       }
 
-      // Bloquear e insertar botón de edición
+      // Bloqueo DIARIO y habilitación de botón de edición
       datosDia.ventas.forEach(v => {
         const card = document.getElementById(`card-asiento-${v.asiento}`);
         const inPasajero = document.getElementById(`pasajero-${v.asiento}`);
         const inDestino = document.getElementById(`destino-${v.asiento}`);
         const inPrecio = document.getElementById(`precio-${v.asiento}`);
-        const btnEditContainer = document.getElementById(`btn-edit-container-${v.asiento}`);
+        const btnContainer = document.getElementById(`btn-editar-container-${v.asiento}`);
 
         if (card && inPasajero) {
           card.classList.add('bloqueado');
@@ -328,82 +295,26 @@
           inPrecio.disabled = true;
           inPrecio.classList.add('bg-red-50', 'text-red-800', 'font-bold');
 
-          if (btnEditContainer) btnEditContainer.classList.remove('hidden');
+          if (btnContainer) {
+            btnContainer.classList.remove('hidden');
+          }
         }
       });
     }
 
-    // GESTIÓN DE EDICIÓN Y MOVIMIENTO DE ASIENTOS
-    function abrirModalEditar(numAsiento) {
+    function liberarAsiento(numAsiento) {
       const fecha = obtenerFechaActual();
-      const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
-      const pasajero = datosDia.ventas.find(v => v.asiento === numAsiento);
+      if (!registroHistorico[fecha] || !registroHistorico[fecha].ventas) return;
 
-      if (!pasajero) return;
-
-      asientoEnEdicion = numAsiento;
-      document.getElementById('edit-num-asiento').innerText = numAsiento;
-      document.getElementById('edit-info-pasajero').innerText = `Pasajero: ${pasajero.pasajero} (${pasajero.destino} - ${pasajero.precio} Bs)`;
-
-      // Cargar asientos disponibles
-      const ocupados = datosDia.ventas.map(v => v.asiento);
-      const select = document.getElementById('select-nuevo-asiento');
-      select.innerHTML = '';
-
-      let libresCount = 0;
-      for (let i = 1; i <= 14; i++) {
-        if (!ocupados.includes(i)) {
-          select.innerHTML += `<option value="${i}">Asiento ${i}</option>`;
-          libresCount++;
-        }
-      }
-
-      if (libresCount === 0) {
-        select.innerHTML = `<option value="">Sin asientos libres</option>`;
-      }
-
-      document.getElementById('modal-editar-asiento').classList.remove('hidden');
-    }
-
-    function cerrarModalEditar() {
-      document.getElementById('modal-editar-asiento').classList.add('hidden');
-      asientoEnEdicion = null;
-    }
-
-    function confirmarMoverAsiento() {
-      const fecha = obtenerFechaActual();
-      const nuevoAsiento = parseInt(document.getElementById('select-nuevo-asiento').value);
-
-      if (!nuevoAsiento) {
-        alert('Seleccione un asiento válido.');
-        return;
-      }
-
-      const datosDia = registroHistorico[fecha];
-      const index = datosDia.ventas.findIndex(v => v.asiento === asientoEnEdicion);
-
-      if (index !== -1) {
-        datosDia.ventas[index].asiento = nuevoAsiento;
+      const confirmacion = confirm(`¿Desea eliminar el registro del Asiento ${numAsiento} para poder volver a ingresarlo?`);
+      if (confirmacion) {
+        // Filtrar y remover únicamente la venta asignada a este número de asiento
+        registroHistorico[fecha].ventas = registroHistorico[fecha].ventas.filter(v => v.asiento !== numAsiento);
+        
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
-        alert(`¡Pasajero movido al Asiento ${nuevoAsiento}!`);
-        cerrarModalEditar();
         renderizarMapaAsientos();
         actualizarCierreDiario();
       }
-    }
-
-    function confirmarEliminarPasajero() {
-      if (!confirm(`¿Está seguro de eliminar el registro del Asiento ${asientoEnEdicion}?`)) return;
-
-      const fecha = obtenerFechaActual();
-      const datosDia = registroHistorico[fecha];
-      datosDia.ventas = datosDia.ventas.filter(v => v.asiento !== asientoEnEdicion);
-
-      localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
-      alert(`Asiento ${asientoEnEdicion} liberado con éxito.`);
-      cerrarModalEditar();
-      renderizarMapaAsientos();
-      actualizarCierreDiario();
     }
 
     function guardarPlanillaBus() {
@@ -444,7 +355,7 @@
 
       if (agregados > 0) {
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
-        alert(`¡Se registraron y bloquearon ${agregados} asientos para el día de hoy (${fecha})!`);
+        alert(`¡Se registraron y bloquearon ${agregados} asientos para la fecha ${fecha}!`);
         renderizarMapaAsientos();
         actualizarCierreDiario();
       } else {

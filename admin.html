@@ -47,8 +47,8 @@
           <input type="text" id="conductor" value="Sabino" class="w-full border rounded p-2 text-sm">
         </div>
         <div>
-          <label class="block text-xs font-bold text-gray-700">Fecha:</label>
-          <input type="date" id="fecha-bus" class="w-full border rounded p-2 text-sm">
+          <label class="block text-xs font-bold text-gray-700">Fecha del Viaje:</label>
+          <input type="date" id="fecha-bus" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-2 text-sm">
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-700">Hora:</label>
@@ -66,7 +66,7 @@
         <!-- Renderizado dinámico de 14 asientos -->
       </div>
       <button onclick="guardarPlanillaBus()" class="mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold px-6 py-2 rounded-lg w-full transition">
-        ➕ Sumar Planilla al Total Diario
+        ➕ Sumar Planilla a la Fecha Seleccionada
       </button>
     </div>
 
@@ -106,7 +106,6 @@
             <tr class="bg-gray-100 border-b">
               <th class="p-2">Concepto / Detalle</th>
               <th class="p-2 text-right">Monto (Bs)</th>
-              <th class="p-2 text-center no-print">Acción</th>
             </tr>
           </thead>
           <tbody id="tabla-otros-ingresos">
@@ -149,11 +148,11 @@
   <script>
     const PIN_CORRECTO = "1234";
 
+    // Inicializar fecha
     document.getElementById('fecha-bus').valueAsDate = new Date();
-    document.getElementById('pdf-fecha-hoy').innerText = "Fecha de Emisión: " + new Date().toLocaleDateString('es-BO');
 
-    let ventasDiarias = JSON.parse(localStorage.getItem('lirujan_ventas_diarias')) || [];
-    let otrosIngresos = JSON.parse(localStorage.getItem('lirujan_otros_ingresos')) || [];
+    // Objeto central donde se guardará por fechas: { "YYYY-MM-DD": { ventas: [], otros: [] } }
+    let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
 
     function verificarPIN() {
       const input = document.getElementById('pin-input').value;
@@ -161,10 +160,20 @@
         document.getElementById('modal-login').classList.add('hidden');
         document.getElementById('panel-admin').classList.remove('hidden');
         renderizarFormularioAsientos();
-        actualizarCierreDiario();
+        cargarDatosFechaSeleccionada();
       } else {
         document.getElementById('login-error').classList.remove('hidden');
       }
+    }
+
+    function obtenerFechaActual() {
+      return document.getElementById('fecha-bus').value;
+    }
+
+    function cargarDatosFechaSeleccionada() {
+      const fecha = obtenerFechaActual();
+      document.getElementById('pdf-fecha-hoy').innerText = "Fecha de Reporte: " + fecha;
+      actualizarCierreDiario();
     }
 
     function renderizarFormularioAsientos() {
@@ -183,9 +192,14 @@
     }
 
     function guardarPlanillaBus() {
+      const fecha = obtenerFechaActual();
       const conductor = document.getElementById('conductor').value;
       const placa = document.getElementById('placa-bus').value;
       const hora = document.getElementById('hora-bus').value;
+
+      if (!registroHistorico[fecha]) {
+        registroHistorico[fecha] = { ventas: [], otros: [] };
+      }
 
       let agregados = 0;
       for (let i = 1; i <= 14; i++) {
@@ -194,7 +208,7 @@
         const precio = parseFloat(document.querySelector(`.admin-precio[data-asiento="${i}"]`).value) || 0;
 
         if (nombre !== '') {
-          ventasDiarias.push({
+          registroHistorico[fecha].ventas.push({
             asiento: i,
             pasajero: nombre,
             destino: destino,
@@ -208,8 +222,8 @@
       }
 
       if (agregados > 0) {
-        localStorage.setItem('lirujan_ventas_diarias', JSON.stringify(ventasDiarias));
-        alert(`¡Se sumaron ${agregados} pasajeros de esta planilla al total diario!`);
+        localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
+        alert(`¡Se registraron ${agregados} pasajeros para la fecha ${fecha}!`);
         renderizarFormularioAsientos();
         actualizarCierreDiario();
       } else {
@@ -218,26 +232,29 @@
     }
 
     function agregarOtroIngreso() {
+      const fecha = obtenerFechaActual();
       const concepto = prompt('Concepto de ingreso (ej. Encomienda Sr. Rojas):');
       if (!concepto) return;
       const monto = parseFloat(prompt('Monto en Bs:')) || 0;
 
-      otrosIngresos.push({ concepto, monto });
-      localStorage.setItem('lirujan_otros_ingresos', JSON.stringify(otrosIngresos));
-      actualizarCierreDiario();
-    }
+      if (!registroHistorico[fecha]) {
+        registroHistorico[fecha] = { ventas: [], otros: [] };
+      }
 
-    function eliminarOtroIngreso(index) {
-      otrosIngresos.splice(index, 1);
-      localStorage.setItem('lirujan_otros_ingresos', JSON.stringify(otrosIngresos));
+      registroHistorico[fecha].otros.push({ concepto, monto });
+      localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
       actualizarCierreDiario();
     }
 
     function actualizarCierreDiario() {
+      const fecha = obtenerFechaActual();
+      const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
+
+      // 1. Destinos
       const resumen = {};
       let totalPasajes = 0;
 
-      ventasDiarias.forEach(v => {
+      datosDia.ventas.forEach(v => {
         if (!resumen[v.destino]) resumen[v.destino] = { cant: 0, total: 0 };
         resumen[v.destino].cant++;
         resumen[v.destino].total += v.precio;
@@ -256,28 +273,27 @@
         `;
       }
 
+      // 2. Otros Ingresos (Sin botón de eliminar)
       const tbodyOtros = document.getElementById('tabla-otros-ingresos');
       tbodyOtros.innerHTML = '';
       let totalOtros = 0;
 
-      otrosIngresos.forEach((item, index) => {
+      datosDia.otros.forEach((item) => {
         totalOtros += item.monto;
         tbodyOtros.innerHTML += `
           <tr class="border-b">
             <td class="p-2">${item.concepto}</td>
             <td class="p-2 text-right">${item.monto.toFixed(2)} Bs</td>
-            <td class="p-2 text-center no-print">
-              <button onclick="eliminarOtroIngreso(${index})" class="text-red-600 font-bold">✕</button>
-            </td>
           </tr>
         `;
       });
 
+      // 3. Detalle Pasajeros
       const tbodyPasajeros = document.getElementById('tabla-detalle-pasajeros');
       tbodyPasajeros.innerHTML = '';
-      document.getElementById('cant-pasajeros-total').innerText = ventasDiarias.length;
+      document.getElementById('cant-pasajeros-total').innerText = datosDia.ventas.length;
 
-      ventasDiarias.forEach((v, idx) => {
+      datosDia.ventas.forEach((v, idx) => {
         tbodyPasajeros.innerHTML += `
           <tr class="border-b">
             <td class="p-1.5 text-gray-500">${idx + 1}</td>
@@ -290,6 +306,7 @@
         `;
       });
 
+      // Sumas totales
       document.getElementById('total-pasajes-bs').innerText = totalPasajes.toFixed(2) + " Bs";
       document.getElementById('total-otros-bs').innerText = totalOtros.toFixed(2) + " Bs";
       document.getElementById('total-general-bs').innerText = (totalPasajes + totalOtros).toFixed(2) + " Bs";
@@ -298,6 +315,7 @@
     function generarPDF() {
       const { jsPDF } = window.jspdf;
       const elemento = document.getElementById('contenido-pdf');
+      const fecha = obtenerFechaActual();
 
       document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
 
@@ -320,7 +338,7 @@
           heightLeft -= pageHeight;
         }
 
-        pdf.save(`Cierre_Diario_Lirujan_${new Date().toISOString().slice(0,10)}.pdf`);
+        pdf.save(`Cierre_Diario_Lirujan_${fecha}.pdf`);
         document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
       });
     }

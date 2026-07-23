@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIRUJAN - Panel de Cierre Diario y Administración</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Librerías para exportar a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans p-4 min-h-screen">
+
+  <!-- ACCESO ADMINISTRADOR (MODAL / LOGIN) -->
+  <div id="modal-login" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full text-center">
+      <h2 class="text-xl font-bold mb-2 text-gray-900">🔒 Acceso Administrador</h2>
+      <p class="text-xs text-gray-600 mb-4">Ingrese la clave para ver el Cierre Diario y exportar en PDF</p>
+      <input type="password" id="pin-input" placeholder="Contraseña Admin" class="w-full border p-2 text-center text-lg rounded mb-4 focus:ring-2 focus:ring-yellow-500 outline-none">
+      <button onclick="verificarPIN()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 rounded-lg transition">
+        Ingresar al Panel
+      </button>
+      <p id="login-error" class="text-red-500 text-xs mt-2 hidden">Clave incorrecta. Intente de nuevo.</p>
+    </div>
+  </div>
+
+  <!-- PANEL PRINCIPAL DE ADMINISTRACIÓN -->
+  <div id="panel-admin" class="max-w-5xl mx-auto space-y-6 hidden">
+
+    <!-- Cabecera -->
+    <header class="bg-white p-4 rounded-xl shadow-md flex justify-between items-center border-b-4 border-yellow-500">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">TRANSPORTE "LIRUJAN"</h1>
+        <p class="text-sm text-gray-600">Panel de Administración y Resumen de Cuenta Diario</p>
+      </div>
+      <button onclick="generarPDF()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow transition">
+        📄 Descargar PDF
+      </button>
+    </header>
+
+    <!-- FORMULARIO DE INGRESO MANUAL DE PLANILLAS (ADMIN) -->
+    <div class="bg-white p-6 rounded-xl shadow-md border">
+      <h2 class="text-lg font-bold border-b pb-2 mb-4">🚌 Agregar Planilla de Bus / Viaje</h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-700">Conductor:</label>
+          <input type="text" id="conductor" value="Sabino" class="w-full border rounded p-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700">Fecha:</label>
+          <input type="date" id="fecha-bus" class="w-full border rounded p-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700">Hora:</label>
+          <input type="time" id="hora-bus" value="16:00" class="w-full border rounded p-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700">Placa / Bus:</label>
+          <input type="text" id="placa-bus" value="EL HERBIE" class="w-full border rounded p-2 text-sm">
+        </div>
+      </div>
+
+      <!-- Carga Rápida de Pasajeros por Planilla -->
+      <p class="text-xs font-semibold text-gray-500 mb-2">Pasajeros de la Planilla (14 Asientos):</p>
+      <div id="grid-asientos-admin" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded bg-gray-50">
+        <!-- Renderizado dinámico de 14 asientos -->
+      </div>
+      <button onclick="guardarPlanillaBus()" class="mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold px-6 py-2 rounded-lg w-full transition">
+        ➕ Sumar Planilla al Total Diario
+      </button>
+    </div>
+
+    <!-- DOCUMENTO RESUMEN DE CUENTA DIARIO (ESTRUCTURA DEL PDF) -->
+    <div id="contenido-pdf" class="bg-white p-6 rounded-xl shadow-md border">
+      <div class="text-center border-b pb-4 mb-4">
+        <h2 class="text-2xl font-black text-gray-900">TRANSPORTE "LIRUJAN"</h2>
+        <p class="text-sm font-bold text-gray-700">RESUMEN DE CUENTA DIARIO Y CIERRE DE CAJA</p>
+        <p id="pdf-fecha-hoy" class="text-xs text-gray-500 mt-1"></p>
+      </div>
+
+      <!-- 1. RESUMEN DE VENTAS POR DESTINO -->
+      <div class="mb-6">
+        <h3 class="text-sm font-bold text-gray-800 mb-2 border-b">1. Resumen Consolidado por Destino</h3>
+        <table class="w-full text-left text-xs border">
+          <thead>
+            <tr class="bg-gray-100 border-b">
+              <th class="p-2">Destino</th>
+              <th class="p-2 text-center">Pasajeros Vendidos</th>
+              <th class="p-2 text-right">Total (Bs)</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-resumen-destinos">
+            <!-- Filas dinámicas -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 2. OTROS INGRESOS (ENCOMIENDAS, CARGA, ETC.) -->
+      <div class="mb-6">
+        <div class="flex justify-between items-center border-b pb-1 mb-2">
+          <h3 class="text-sm font-bold text-gray-800">2. Otros Ingresos</h3>
+          <button onclick="agregarOtroIngreso()" class="bg-blue-600 text-white text-xs px-3 py-1 rounded font-semibold hover:bg-blue-700 no-print">+ Agregar Ingreso</button>
+        </div>
+        <table class="w-full text-left text-xs border">
+          <thead>
+            <tr class="bg-gray-100 border-b">
+              <th class="p-2">Concepto / Detalle</th>
+              <th class="p-2 text-right">Monto (Bs)</th>
+              <th class="p-2 text-center no-print">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-otros-ingresos">
+            <!-- Filas dinámicas -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. PLANILLA ENTERA CON TOTAL DE PASAJEROS -->
+      <div class="mb-6">
+        <h3 class="text-sm font-bold text-gray-800 mb-2 border-b">3. Detalle de Pasajeros Vendidos (<span id="cant-pasajeros-total">0</span> personas)</h3>
+        <table class="w-full text-left text-xs border">
+          <thead>
+            <tr class="bg-gray-100 border-b">
+              <th class="p-1.5">#</th>
+              <th class="p-1.5">Nombre Pasajero</th>
+              <th class="p-1.5">Asiento</th>
+              <th class="p-1.5">Destino</th>
+              <th class="p-1.5">Bus / Conductor</th>
+              <th class="p-1.5 text-right">Monto (Bs)</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-detalle-pasajeros">
+            <!-- Detalle de todos los pasajeros vendidos -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TOTALES CONSOLIDADOS -->
+      <div class="bg-gray-50 p-4 rounded-lg border text-right space-y-1">
+        <p class="text-sm">Suma Venta Pasajes: <span id="total-pasajes-bs" class="font-bold">0.00 Bs</span></p>
+        <p class="text-sm">Suma Otros Ingresos: <span id="total-otros-bs" class="font-bold">0.00 Bs</span></p>
+        <hr class="my-2">
+        <p class="text-xl font-black text-green-700">TOTAL GENERAL VENDIDO DIARIO: <span id="total-general-bs">0.00 Bs</span></p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PIN_CORRECTO = "1234";
+
+    document.getElementById('fecha-bus').valueAsDate = new Date();
+    document.getElementById('pdf-fecha-hoy').innerText = "Fecha de Emisión: " + new Date().toLocaleDateString('es-BO');
+
+    let ventasDiarias = JSON.parse(localStorage.getItem('lirujan_ventas_diarias')) || [];
+    let otrosIngresos = JSON.parse(localStorage.getItem('lirujan_otros_ingresos')) || [];
+
+    function verificarPIN() {
+      const input = document.getElementById('pin-input').value;
+      if (input === PIN_CORRECTO) {
+        document.getElementById('modal-login').classList.add('hidden');
+        document.getElementById('panel-admin').classList.remove('hidden');
+        renderizarFormularioAsientos();
+        actualizarCierreDiario();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    function renderizarFormularioAsientos() {
+      const container = document.getElementById('grid-asientos-admin');
+      container.innerHTML = '';
+      for (let i = 1; i <= 14; i++) {
+        container.innerHTML += `
+          <div class="flex gap-2 items-center bg-white p-1.5 border rounded">
+            <span class="text-xs font-bold w-12">As. ${i}</span>
+            <input type="text" placeholder="Nombre" class="admin-pasajero border text-xs p-1 rounded flex-1" data-asiento="${i}">
+            <input type="text" placeholder="Destino" class="admin-destino border text-xs p-1 rounded w-20" data-asiento="${i}">
+            <input type="number" placeholder="Bs" class="admin-precio border text-xs p-1 rounded w-16" data-asiento="${i}">
+          </div>
+        `;
+      }
+    }
+
+    function guardarPlanillaBus() {
+      const conductor = document.getElementById('conductor').value;
+      const placa = document.getElementById('placa-bus').value;
+      const hora = document.getElementById('hora-bus').value;
+
+      let agregados = 0;
+      for (let i = 1; i <= 14; i++) {
+        const nombre = document.querySelector(`.admin-pasajero[data-asiento="${i}"]`).value.trim();
+        const destino = document.querySelector(`.admin-destino[data-asiento="${i}"]`).value.trim().toUpperCase() || 'GENERAL';
+        const precio = parseFloat(document.querySelector(`.admin-precio[data-asiento="${i}"]`).value) || 0;
+
+        if (nombre !== '') {
+          ventasDiarias.push({
+            asiento: i,
+            pasajero: nombre,
+            destino: destino,
+            precio: precio,
+            conductor: conductor,
+            placa: placa,
+            hora: hora
+          });
+          agregados++;
+        }
+      }
+
+      if (agregados > 0) {
+        localStorage.setItem('lirujan_ventas_diarias', JSON.stringify(ventasDiarias));
+        alert(`¡Se sumaron ${agregados} pasajeros de esta planilla al total diario!`);
+        renderizarFormularioAsientos();
+        actualizarCierreDiario();
+      } else {
+        alert('Ingrese al menos un pasajero en la planilla.');
+      }
+    }
+
+    function agregarOtroIngreso() {
+      const concepto = prompt('Concepto de ingreso (ej. Encomienda Sr. Rojas):');
+      if (!concepto) return;
+      const monto = parseFloat(prompt('Monto en Bs:')) || 0;
+
+      otrosIngresos.push({ concepto, monto });
+      localStorage.setItem('lirujan_otros_ingresos', JSON.stringify(otrosIngresos));
+      actualizarCierreDiario();
+    }
+
+    function eliminarOtroIngreso(index) {
+      otrosIngresos.splice(index, 1);
+      localStorage.setItem('lirujan_otros_ingresos', JSON.stringify(otrosIngresos));
+      actualizarCierreDiario();
+    }
+
+    function actualizarCierreDiario() {
+      const resumen = {};
+      let totalPasajes = 0;
+
+      ventasDiarias.forEach(v => {
+        if (!resumen[v.destino]) resumen[v.destino] = { cant: 0, total: 0 };
+        resumen[v.destino].cant++;
+        resumen[v.destino].total += v.precio;
+        totalPasajes += v.precio;
+      });
+
+      const tbodyDestinos = document.getElementById('tabla-resumen-destinos');
+      tbodyDestinos.innerHTML = '';
+      for (const [dest, info] of Object.entries(resumen)) {
+        tbodyDestinos.innerHTML += `
+          <tr class="border-b">
+            <td class="p-2 font-bold">${dest}</td>
+            <td class="p-2 text-center">${info.cant}</td>
+            <td class="p-2 text-right">${info.total.toFixed(2)} Bs</td>
+          </tr>
+        `;
+      }
+
+      const tbodyOtros = document.getElementById('tabla-otros-ingresos');
+      tbodyOtros.innerHTML = '';
+      let totalOtros = 0;
+
+      otrosIngresos.forEach((item, index) => {
+        totalOtros += item.monto;
+        tbodyOtros.innerHTML += `
+          <tr class="border-b">
+            <td class="p-2">${item.concepto}</td>
+            <td class="p-2 text-right">${item.monto.toFixed(2)} Bs</td>
+            <td class="p-2 text-center no-print">
+              <button onclick="eliminarOtroIngreso(${index})" class="text-red-600 font-bold">✕</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      const tbodyPasajeros = document.getElementById('tabla-detalle-pasajeros');
+      tbodyPasajeros.innerHTML = '';
+      document.getElementById('cant-pasajeros-total').innerText = ventasDiarias.length;
+
+      ventasDiarias.forEach((v, idx) => {
+        tbodyPasajeros.innerHTML += `
+          <tr class="border-b">
+            <td class="p-1.5 text-gray-500">${idx + 1}</td>
+            <td class="p-1.5 font-semibold">${v.pasajero}</td>
+            <td class="p-1.5">Asiento ${v.asiento}</td>
+            <td class="p-1.5">${v.destino}</td>
+            <td class="p-1.5 text-gray-600">${v.placa} (${v.hora})</td>
+            <td class="p-1.5 text-right font-semibold">${v.precio.toFixed(2)} Bs</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('total-pasajes-bs').innerText = totalPasajes.toFixed(2) + " Bs";
+      document.getElementById('total-otros-bs').innerText = totalOtros.toFixed(2) + " Bs";
+      document.getElementById('total-general-bs').innerText = (totalPasajes + totalOtros).toFixed(2) + " Bs";
+    }
+
+    function generarPDF() {
+      const { jsPDF } = window.jspdf;
+      const elemento = document.getElementById('contenido-pdf');
+
+      document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+
+      html2canvas(elemento, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`Cierre_Diario_Lirujan_${new Date().toISOString().slice(0,10)}.pdf`);
+        document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+      });
+    }
+  </script>
+</body>
+</html>

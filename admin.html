@@ -89,12 +89,12 @@
           </div>
           <div>
             <label class="block font-bold text-gray-700">HORA SALIDA:</label>
-            <input type="time" id="hora-bus" value="16:00" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
+            <input type="time" id="hora-bus" value="16:00" class="w-full border rounded p-1 font-semibold">
           </div>
         </div>
       </div>
 
-      <!-- CROQUIS CON ASIENTOS -->
+      <!-- CROQUIS DE ASIENTOS -->
       <div class="bg-gray-100 p-3 rounded-lg border">
         <p class="text-center font-bold text-xs text-gray-600 mb-3 uppercase">CROQUIS DE PASAJEROS (14 ASIENTOS)</p>
         
@@ -257,10 +257,9 @@
 
     function renderizarMapaAsientos() {
       const fecha = obtenerFechaActual();
-      const hora = obtenerHoraActual();
       const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
 
-      // Renderizar casilleros
+      // Renderizar casilleros limpios
       for (let i = 1; i <= 14; i++) {
         const target = document.getElementById(`asiento-box-${i}`);
         if (target) {
@@ -268,29 +267,27 @@
         }
       }
 
-      // Bloquear asientos ya registrados en esta FECHA y HORA específicas
+      // Bloqueo DIARIO: bloquea cualquier asiento ocupado en esta FECHA (sin importar la hora)
       datosDia.ventas.forEach(v => {
-        if (v.hora === hora) {
-          const card = document.getElementById(`card-asiento-${v.asiento}`);
-          const inPasajero = document.getElementById(`pasajero-${v.asiento}`);
-          const inDestino = document.getElementById(`destino-${v.asiento}`);
-          const inPrecio = document.getElementById(`precio-${v.asiento}`);
+        const card = document.getElementById(`card-asiento-${v.asiento}`);
+        const inPasajero = document.getElementById(`pasajero-${v.asiento}`);
+        const inDestino = document.getElementById(`destino-${v.asiento}`);
+        const inPrecio = document.getElementById(`precio-${v.asiento}`);
 
-          if (card && inPasajero) {
-            card.classList.add('bloqueado');
-            
-            inPasajero.value = v.pasajero;
-            inPasajero.disabled = true;
-            inPasajero.classList.add('bg-red-50', 'text-red-800', 'font-bold');
+        if (card && inPasajero) {
+          card.classList.add('bloqueado');
+          
+          inPasajero.value = v.pasajero;
+          inPasajero.disabled = true;
+          inPasajero.classList.add('bg-red-50', 'text-red-800', 'font-bold');
 
-            inDestino.value = v.destino;
-            inDestino.disabled = true;
-            inDestino.classList.add('bg-red-50', 'text-red-800', 'font-bold');
+          inDestino.value = v.destino;
+          inDestino.disabled = true;
+          inDestino.classList.add('bg-red-50', 'text-red-800', 'font-bold');
 
-            inPrecio.value = v.precio;
-            inPrecio.disabled = true;
-            inPrecio.classList.add('bg-red-50', 'text-red-800', 'font-bold');
-          }
+          inPrecio.value = v.precio;
+          inPrecio.disabled = true;
+          inPrecio.classList.add('bg-red-50', 'text-red-800', 'font-bold');
         }
       });
     }
@@ -311,7 +308,7 @@
         const inputDestino = document.getElementById(`destino-${i}`);
         const inputPrecio = document.getElementById(`precio-${i}`);
 
-        // Solo procesar casilleros que NO estén deshabilitados (nuevos)
+        // Solo procesar casilleros activos que no han sido bloqueados durante el día
         if (inputNombre && !inputNombre.disabled) {
           const nombre = inputNombre.value.trim();
           const destino = inputDestino.value.trim().toUpperCase() || 'GENERAL';
@@ -334,11 +331,11 @@
 
       if (agregados > 0) {
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
-        alert(`¡Se registraron y bloquearon ${agregados} asientos para las ${hora}!`);
+        alert(`¡Se registraron y bloquearon ${agregados} asientos para el día de hoy (${fecha})!`);
         renderizarMapaAsientos();
         actualizarCierreDiario();
       } else {
-        alert('No hay asientos nuevos para guardar en esta hora.');
+        alert('No hay asientos nuevos para guardar en esta fecha.');
       }
     }
 

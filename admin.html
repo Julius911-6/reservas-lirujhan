@@ -87,45 +87,41 @@
         </div>
       </div>
 
-      <!-- MAPA DE ASIENTOS (ESQUEMA EXACTO A LA PLANILLA FÍSICA) -->
+      <!-- CROQUIS CON EL PASILLO RECTIFICADO -->
       <div class="bg-gray-100 p-3 rounded-lg border">
         <p class="text-center font-bold text-xs text-gray-600 mb-3 uppercase">CROQUIS DE PASAJEROS (14 ASIENTOS)</p>
         
-        <!-- Fila 1: Volante - Asiento 13 - Asiento 14 -->
-        <div class="grid grid-cols-3 gap-2 mb-3">
-          <div class="flex items-center justify-center p-2 border-2 border-dashed border-gray-400 rounded-lg bg-gray-200">
+        <div class="grid grid-cols-4 gap-2">
+          <!-- Fila 1: Chofer (2 cols) | 13 | 14 -->
+          <div class="col-span-2 flex items-center justify-center p-2 border-2 border-dashed border-gray-400 rounded-lg bg-gray-200">
             <span class="text-2xl">☸️</span>
             <span class="text-xs font-bold text-gray-600 ml-1">Chofer</span>
           </div>
           <div id="asiento-box-13"></div>
           <div id="asiento-box-14"></div>
-        </div>
 
-        <!-- Filas Intermedias -->
-        <div class="grid grid-cols-3 gap-2">
-          <!-- Columna Izquierda (3, 5, 7, 9) -->
-          <div class="space-y-2">
-            <div id="asiento-box-3"></div>
-            <div id="asiento-box-5"></div>
-            <div id="asiento-box-7"></div>
-            <div id="asiento-box-9"></div>
-          </div>
+          <!-- Fila 2: 3 | 4 | Espacio Blanco (Pasillo superior - 2 cols) -->
+          <div id="asiento-box-3"></div>
+          <div id="asiento-box-4"></div>
+          <div class="col-span-2"></div>
 
-          <!-- Columna Centro (4, 6, 8, 10) -->
-          <div class="space-y-2">
-            <div id="asiento-box-4"></div>
-            <div id="asiento-box-6"></div>
-            <div id="asiento-box-8"></div>
-            <div id="asiento-box-10"></div>
-          </div>
+          <!-- Fila 3: 5 | 6 | Pasillo central | 1 (Extrema derecha) -->
+          <div id="asiento-box-5"></div>
+          <div id="asiento-box-6"></div>
+          <div></div>
+          <div id="asiento-box-1"></div>
 
-          <!-- Columna Derecha (1, 2, 11, 12) -->
-          <div class="space-y-2">
-            <div id="asiento-box-1"></div>
-            <div id="asiento-box-2"></div>
-            <div id="asiento-box-11"></div>
-            <div id="asiento-box-12"></div>
-          </div>
+          <!-- Fila 4: 7 | 8 | Pasillo central | 2 (Extrema derecha) -->
+          <div id="asiento-box-7"></div>
+          <div id="asiento-box-8"></div>
+          <div></div>
+          <div id="asiento-box-2"></div>
+
+          <!-- Fila 5: 9 | 10 | 11 | 12 -->
+          <div id="asiento-box-9"></div>
+          <div id="asiento-box-10"></div>
+          <div id="asiento-box-11"></div>
+          <div id="asiento-box-12"></div>
         </div>
       </div>
 
@@ -206,10 +202,8 @@
   <script>
     const PIN_CORRECTO = "1234";
 
-    // Inicializar Fecha
     document.getElementById('fecha-bus').valueAsDate = new Date();
 
-    // Estructura central: { "YYYY-MM-DD": { ventas: [], otros: [] } }
     let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
 
     function verificarPIN() {
@@ -234,7 +228,6 @@
       actualizarCierreDiario();
     }
 
-    // Componente individual para cada asiento en el mapa croquis
     function crearHtmlAsiento(num) {
       return `
         <div class="asiento-card p-2 shadow-sm">
@@ -324,7 +317,6 @@
       const fecha = obtenerFechaActual();
       const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
 
-      // 1. Destinos
       const resumen = {};
       let totalPasajes = 0;
 
@@ -347,7 +339,6 @@
         `;
       }
 
-      // 2. Otros Ingresos
       const tbodyOtros = document.getElementById('tabla-otros-ingresos');
       tbodyOtros.innerHTML = '';
       let totalOtros = 0;
@@ -362,7 +353,6 @@
         `;
       });
 
-      // 3. Detalle Pasajeros
       const tbodyPasajeros = document.getElementById('tabla-detalle-pasajeros');
       tbodyPasajeros.innerHTML = '';
       document.getElementById('cant-pasajeros-total').innerText = datosDia.ventas.length;
@@ -380,7 +370,6 @@
         `;
       });
 
-      // Totales
       document.getElementById('total-pasajes-bs').innerText = totalPasajes.toFixed(2) + " Bs";
       document.getElementById('total-otros-bs').innerText = totalOtros.toFixed(2) + " Bs";
       document.getElementById('total-general-bs').innerText = (totalPasajes + totalOtros).toFixed(2) + " Bs";

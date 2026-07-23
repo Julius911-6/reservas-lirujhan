@@ -15,6 +15,10 @@
       position: relative;
       background-color: #fff;
     }
+    .asiento-card.bloqueado {
+      background-color: #fee2e2;
+      border-color: #ef4444;
+    }
     .asiento-num {
       position: absolute;
       top: 0;
@@ -25,6 +29,9 @@
       font-size: 0.85rem;
       padding: 2px 6px;
       border-bottom-left-radius: 6px;
+    }
+    .asiento-card.bloqueado .asiento-num {
+      background-color: #ef4444;
     }
   </style>
 </head>
@@ -82,12 +89,12 @@
           </div>
           <div>
             <label class="block font-bold text-gray-700">HORA SALIDA:</label>
-            <input type="time" id="hora-bus" value="16:00" class="w-full border rounded p-1 font-semibold">
+            <input type="time" id="hora-bus" value="16:00" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
           </div>
         </div>
       </div>
 
-      <!-- CROQUIS CON EL PASILLO RECTIFICADO -->
+      <!-- CROQUIS CON ASIENTOS -->
       <div class="bg-gray-100 p-3 rounded-lg border">
         <p class="text-center font-bold text-xs text-gray-600 mb-3 uppercase">CROQUIS DE PASAJEROS (14 ASIENTOS)</p>
         
@@ -100,18 +107,18 @@
           <div id="asiento-box-13"></div>
           <div id="asiento-box-14"></div>
 
-          <!-- Fila 2: 3 | 4 | Espacio Blanco (Pasillo superior - 2 cols) -->
+          <!-- Fila 2: 3 | 4 | Espacio Blanco -->
           <div id="asiento-box-3"></div>
           <div id="asiento-box-4"></div>
           <div class="col-span-2"></div>
 
-          <!-- Fila 3: 5 | 6 | Pasillo central | 1 (Extrema derecha) -->
+          <!-- Fila 3: 5 | 6 | Pasillo central | 1 -->
           <div id="asiento-box-5"></div>
           <div id="asiento-box-6"></div>
           <div></div>
           <div id="asiento-box-1"></div>
 
-          <!-- Fila 4: 7 | 8 | Pasillo central | 2 (Extrema derecha) -->
+          <!-- Fila 4: 7 | 8 | Pasillo central | 2 -->
           <div id="asiento-box-7"></div>
           <div id="asiento-box-8"></div>
           <div></div>
@@ -200,7 +207,7 @@
   </div>
 
   <script>
-    const PIN_CORRECTO = "1234";
+    const PIN_CORRECTO = "72406904";
 
     document.getElementById('fecha-bus').valueAsDate = new Date();
 
@@ -222,21 +229,26 @@
       return document.getElementById('fecha-bus').value;
     }
 
+    function obtenerHoraActual() {
+      return document.getElementById('hora-bus').value;
+    }
+
     function cargarDatosFechaSeleccionada() {
       const fecha = obtenerFechaActual();
       document.getElementById('pdf-fecha-hoy').innerText = "Fecha de Reporte: " + fecha;
+      renderizarMapaAsientos();
       actualizarCierreDiario();
     }
 
     function crearHtmlAsiento(num) {
       return `
-        <div class="asiento-card p-2 shadow-sm">
+        <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" placeholder="Pasajero" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" placeholder="Destino" class="admin-destino w-full border text-xs p-1 rounded uppercase font-bold" data-asiento="${num}">
-              <input type="number" placeholder="Bs" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" class="admin-destino w-full border text-xs p-1 rounded uppercase font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
         </div>
@@ -244,19 +256,50 @@
     }
 
     function renderizarMapaAsientos() {
+      const fecha = obtenerFechaActual();
+      const hora = obtenerHoraActual();
+      const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
+
+      // Renderizar casilleros
       for (let i = 1; i <= 14; i++) {
         const target = document.getElementById(`asiento-box-${i}`);
         if (target) {
           target.innerHTML = crearHtmlAsiento(i);
         }
       }
+
+      // Bloquear asientos ya registrados en esta FECHA y HORA específicas
+      datosDia.ventas.forEach(v => {
+        if (v.hora === hora) {
+          const card = document.getElementById(`card-asiento-${v.asiento}`);
+          const inPasajero = document.getElementById(`pasajero-${v.asiento}`);
+          const inDestino = document.getElementById(`destino-${v.asiento}`);
+          const inPrecio = document.getElementById(`precio-${v.asiento}`);
+
+          if (card && inPasajero) {
+            card.classList.add('bloqueado');
+            
+            inPasajero.value = v.pasajero;
+            inPasajero.disabled = true;
+            inPasajero.classList.add('bg-red-50', 'text-red-800', 'font-bold');
+
+            inDestino.value = v.destino;
+            inDestino.disabled = true;
+            inDestino.classList.add('bg-red-50', 'text-red-800', 'font-bold');
+
+            inPrecio.value = v.precio;
+            inPrecio.disabled = true;
+            inPrecio.classList.add('bg-red-50', 'text-red-800', 'font-bold');
+          }
+        }
+      });
     }
 
     function guardarPlanillaBus() {
       const fecha = obtenerFechaActual();
+      const hora = obtenerHoraActual();
       const conductor = document.getElementById('conductor').value;
       const placa = document.getElementById('placa-bus').value;
-      const hora = document.getElementById('hora-bus').value;
 
       if (!registroHistorico[fecha]) {
         registroHistorico[fecha] = { ventas: [], otros: [] };
@@ -264,11 +307,12 @@
 
       let agregados = 0;
       for (let i = 1; i <= 14; i++) {
-        const inputNombre = document.querySelector(`.admin-pasajero[data-asiento="${i}"]`);
-        const inputDestino = document.querySelector(`.admin-destino[data-asiento="${i}"]`);
-        const inputPrecio = document.querySelector(`.admin-precio[data-asiento="${i}"]`);
+        const inputNombre = document.getElementById(`pasajero-${i}`);
+        const inputDestino = document.getElementById(`destino-${i}`);
+        const inputPrecio = document.getElementById(`precio-${i}`);
 
-        if (inputNombre) {
+        // Solo procesar casilleros que NO estén deshabilitados (nuevos)
+        if (inputNombre && !inputNombre.disabled) {
           const nombre = inputNombre.value.trim();
           const destino = inputDestino.value.trim().toUpperCase() || 'GENERAL';
           const precio = parseFloat(inputPrecio.value) || 0;
@@ -290,11 +334,11 @@
 
       if (agregados > 0) {
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
-        alert(`¡Se registraron ${agregados} asientos para la fecha ${fecha}!`);
+        alert(`¡Se registraron y bloquearon ${agregados} asientos para las ${hora}!`);
         renderizarMapaAsientos();
         actualizarCierreDiario();
       } else {
-        alert('Ingrese al menos un pasajero en la planilla.');
+        alert('No hay asientos nuevos para guardar en esta hora.');
       }
     }
 

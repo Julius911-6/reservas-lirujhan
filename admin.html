@@ -77,11 +77,11 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" value="Sabino" class="w-full border rounded p-1 font-semibold uppercase">
+            <input type="text" id="conductor" value="Sabino" dir="ltr" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" value="EL HERBIE" class="w-full border rounded p-1 font-semibold uppercase">
+            <input type="text" id="placa-bus" value="EL HERBIE" dir="ltr" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
@@ -245,15 +245,15 @@
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" placeholder="Pasajero" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" dir="ltr" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" id="destino-${num}" placeholder="Destino" class="admin-destino w-full border text-xs p-1 rounded uppercase font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" placeholder="Bs" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" dir="ltr" class="admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" dir="ltr" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
             <button onclick="liberarAsiento(${num})" class="text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold py-0.5 px-2 rounded uppercase shadow transition">
-              ✏️ Editar / Liberar
+              🔓 Liberar
             </button>
           </div>
         </div>
@@ -264,7 +264,6 @@
       const fecha = obtenerFechaActual();
       const datosDia = registroHistorico[fecha] || { ventas: [], otros: [] };
 
-      // Renderizar casilleros limpios
       for (let i = 1; i <= 14; i++) {
         const target = document.getElementById(`asiento-box-${i}`);
         if (target) {
@@ -272,7 +271,6 @@
         }
       }
 
-      // Bloqueo DIARIO y habilitación de botón de edición
       datosDia.ventas.forEach(v => {
         const card = document.getElementById(`card-asiento-${v.asiento}`);
         const inPasajero = document.getElementById(`pasajero-${v.asiento}`);
@@ -306,9 +304,8 @@
       const fecha = obtenerFechaActual();
       if (!registroHistorico[fecha] || !registroHistorico[fecha].ventas) return;
 
-      const confirmacion = confirm(`¿Desea eliminar el registro del Asiento ${numAsiento} para poder volver a ingresarlo?`);
+      const confirmacion = confirm(`¿Desea liberar el Asiento ${numAsiento} para poder volver a ingresarlo?`);
       if (confirmacion) {
-        // Filtrar y remover únicamente la venta asignada a este número de asiento
         registroHistorico[fecha].ventas = registroHistorico[fecha].ventas.filter(v => v.asiento !== numAsiento);
         
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
@@ -320,8 +317,8 @@
     function guardarPlanillaBus() {
       const fecha = obtenerFechaActual();
       const hora = obtenerHoraActual();
-      const conductor = document.getElementById('conductor').value;
-      const placa = document.getElementById('placa-bus').value;
+      const conductor = document.getElementById('conductor').value.trim().toUpperCase();
+      const placa = document.getElementById('placa-bus').value.trim().toUpperCase();
 
       if (!registroHistorico[fecha]) {
         registroHistorico[fecha] = { ventas: [], otros: [] };
@@ -373,7 +370,7 @@
         registroHistorico[fecha] = { ventas: [], otros: [] };
       }
 
-      registroHistorico[fecha].otros.push({ concepto, monto });
+      registroHistorico[fecha].otros.push({ concepto: concepto.toUpperCase(), monto });
       localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
       actualizarCierreDiario();
     }

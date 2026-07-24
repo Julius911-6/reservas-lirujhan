@@ -77,11 +77,11 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" value="Sabino" dir="ltr" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="conductor" value="Sabino" autocomplete="off" spellcheck="false" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" value="EL HERBIE" dir="ltr" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="placa-bus" value="EL HERBIE" autocomplete="off" spellcheck="false" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
@@ -245,10 +245,10 @@
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" placeholder="Pasajero" dir="ltr" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" autocomplete="off" spellcheck="false" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" id="destino-${num}" placeholder="Destino" dir="ltr" class="admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" placeholder="Bs" dir="ltr" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" autocomplete="off" spellcheck="false" class="admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" autocomplete="off" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
@@ -304,7 +304,7 @@
       const fecha = obtenerFechaActual();
       if (!registroHistorico[fecha] || !registroHistorico[fecha].ventas) return;
 
-      const confirmacion = confirm(`¿Desea liberar el Asiento ${numAsiento} para poder volver a ingresarlo?`);
+      const confirmacion = confirm(`¿Desea liberar el Asiento ${numAsiento} para borrarlo y volver a ingresarlo?`);
       if (confirmacion) {
         registroHistorico[fecha].ventas = registroHistorico[fecha].ventas.filter(v => v.asiento !== numAsiento);
         

@@ -33,6 +33,12 @@
     .asiento-card.bloqueado .asiento-num {
       background-color: #ef4444;
     }
+    /* Control estricto de dirección para evitar bug de teclado Android */
+    input.fix-input {
+      direction: ltr !important;
+      text-align: left !important;
+      unicode-bidi: embed !important;
+    }
   </style>
 </head>
 <body class="bg-gray-200 text-gray-800 font-sans p-2 sm:p-4 min-h-screen">
@@ -77,11 +83,11 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" value="Sabino" autocomplete="off" spellcheck="false" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="conductor" value="Sabino" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" value="EL HERBIE" autocomplete="off" spellcheck="false" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="placa-bus" value="EL HERBIE" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
@@ -245,10 +251,10 @@
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" placeholder="Pasajero" autocomplete="off" spellcheck="false" class="admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" id="destino-${num}" placeholder="Destino" autocomplete="off" spellcheck="false" class="admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" placeholder="Bs" autocomplete="off" class="admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" autocomplete="off" class="fix-input admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
@@ -306,7 +312,8 @@
 
       const confirmacion = confirm(`¿Desea liberar el Asiento ${numAsiento} para borrarlo y volver a ingresarlo?`);
       if (confirmacion) {
-        registroHistorico[fecha].ventas = registroHistorico[fecha].ventas.filter(v => v.asiento !== numAsiento);
+        // Comparación estricta convirtiendo ambos a String para evitar fallos de tipo de dato
+        registroHistorico[fecha].ventas = registroHistorico[fecha].ventas.filter(v => String(v.asiento) !== String(numAsiento));
         
         localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
         renderizarMapaAsientos();

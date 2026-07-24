@@ -77,11 +77,11 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" value="Sabino" autocomplete="off" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="conductor" value="Sabino" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" value="EL HERBIE" autocomplete="off" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="placa-bus" value="EL HERBIE" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
@@ -213,31 +213,31 @@
 
     let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
 
-    function limpiarTextoLTR(texto) {
+    // Función simplificada para evitar conflictos con el teclado de Android
+    function limpiarTexto(texto) {
       if (!texto) return '';
-      return String(texto)
-        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
-        .trim()
-        .toUpperCase();
+      return String(texto).trim().toUpperCase();
     }
 
     // Saneamiento y recuperación automática de registros corruptos
     function sanearHistorico() {
       let modificado = false;
       
-      // Diccionario de fallos guardados en memoria por el bug del input
+      // Diccionario de auto-reparación ampliado con los nuevos errores detectados
       const reparacionDestinos = {
         'OLLIBMAT': 'TAMBILLO',
         'IVATAC': 'CATAVI',
-        'OZOP': 'POZO'
+        'OZOP': 'POZO',
+        'EBA BURP': 'PRUEBA',
+        'BA MABAHCOC': 'COCHABAMBA'
       };
 
       for (const fecha in registroHistorico) {
         if (registroHistorico[fecha].ventas) {
           registroHistorico[fecha].ventas.forEach(v => {
-            let destLimpio = limpiarTextoLTR(v.destino);
+            let destLimpio = limpiarTexto(v.destino);
             
-            // Auto-arregla los destinos de la sesión dañada
+            // Auto-arregla los destinos corruptos
             if (reparacionDestinos[destLimpio]) {
               destLimpio = reparacionDestinos[destLimpio];
             }
@@ -246,7 +246,7 @@
               v.destino = destLimpio;
               modificado = true;
             }
-            const pasLimpio = limpiarTextoLTR(v.pasajero);
+            const pasLimpio = limpiarTexto(v.pasajero);
             if (v.pasajero !== pasLimpio) {
               v.pasajero = pasLimpio;
               modificado = true;
@@ -280,22 +280,16 @@
       return document.getElementById('hora-bus').value;
     }
 
-    function cargarDatosFechaSeleccionada() {
-      const fecha = obtenerFechaActual();
-      document.getElementById('pdf-fecha-hoy').innerText = "Fecha de Reporte: " + fecha;
-      renderizarMapaAsientos();
-      actualizarCierreDiario();
-    }
-
+    // Se eliminó autocomplete="off" de los inputs para frenar el bug nativo de Android/Gboard
     function crearHtmlAsiento(num) {
       return `
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" placeholder="Pasajero" autocomplete="off" class="w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" class="w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" id="destino-${num}" placeholder="Destino" autocomplete="off" class="w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" placeholder="Bs" autocomplete="off" class="w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" class="w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" class="w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
@@ -328,11 +322,11 @@
         if (card && inPasajero) {
           card.classList.add('bloqueado');
           
-          inPasajero.value = limpiarTextoLTR(v.pasajero);
+          inPasajero.value = limpiarTexto(v.pasajero);
           inPasajero.disabled = true;
           inPasajero.classList.add('bg-red-50', 'text-red-800', 'font-bold');
 
-          inDestino.value = limpiarTextoLTR(v.destino);
+          inDestino.value = limpiarTexto(v.destino);
           inDestino.disabled = true;
           inDestino.classList.add('bg-red-50', 'text-red-800', 'font-bold');
 
@@ -364,8 +358,8 @@
     function guardarPlanillaBus() {
       const fecha = obtenerFechaActual();
       const hora = obtenerHoraActual();
-      const conductor = limpiarTextoLTR(document.getElementById('conductor').value);
-      const placa = limpiarTextoLTR(document.getElementById('placa-bus').value);
+      const conductor = limpiarTexto(document.getElementById('conductor').value);
+      const placa = limpiarTexto(document.getElementById('placa-bus').value);
 
       if (!registroHistorico[fecha]) {
         registroHistorico[fecha] = { ventas: [], otros: [] };
@@ -378,8 +372,8 @@
         const inputPrecio = document.getElementById(`precio-${i}`);
 
         if (inputNombre && !inputNombre.disabled) {
-          const nombre = limpiarTextoLTR(inputNombre.value);
-          const destino = limpiarTextoLTR(inputDestino.value) || 'GENERAL';
+          const nombre = limpiarTexto(inputNombre.value);
+          const destino = limpiarTexto(inputDestino.value) || 'GENERAL';
           const precio = parseFloat(inputPrecio.value) || 0;
 
           if (nombre !== '') {
@@ -417,7 +411,7 @@
         registroHistorico[fecha] = { ventas: [], otros: [] };
       }
 
-      registroHistorico[fecha].otros.push({ concepto: limpiarTextoLTR(concepto), monto });
+      registroHistorico[fecha].otros.push({ concepto: limpiarTexto(concepto), monto });
       localStorage.setItem('lirujan_registro_historico', JSON.stringify(registroHistorico));
       actualizarCierreDiario();
     }
@@ -430,7 +424,7 @@
       let totalPasajes = 0;
 
       datosDia.ventas.forEach(v => {
-        const dest = limpiarTextoLTR(v.destino);
+        const dest = limpiarTexto(v.destino);
         if (!resumen[dest]) resumen[dest] = { cant: 0, total: 0 };
         resumen[dest].cant++;
         resumen[dest].total += v.precio;
@@ -457,7 +451,7 @@
         totalOtros += item.monto;
         tbodyOtros.innerHTML += `
           <tr class="border-b">
-            <td class="p-2">${limpiarTextoLTR(item.concepto)}</td>
+            <td class="p-2">${limpiarTexto(item.concepto)}</td>
             <td class="p-2 text-right">${item.monto.toFixed(2)} Bs</td>
           </tr>
         `;
@@ -471,10 +465,10 @@
         tbodyPasajeros.innerHTML += `
           <tr class="border-b">
             <td class="p-1.5 text-gray-500">${idx + 1}</td>
-            <td class="p-1.5 font-semibold">${limpiarTextoLTR(v.pasajero)}</td>
+            <td class="p-1.5 font-semibold">${limpiarTexto(v.pasajero)}</td>
             <td class="p-1.5">Asiento ${v.asiento}</td>
-            <td class="p-1.5 font-bold">${limpiarTextoLTR(v.destino)}</td>
-            <td class="p-1.5 text-gray-600">${limpiarTextoLTR(v.placa)} (${v.hora})</td>
+            <td class="p-1.5 font-bold">${limpiarTexto(v.destino)}</td>
+            <td class="p-1.5 text-gray-600">${limpiarTexto(v.placa)} (${v.hora})</td>
             <td class="p-1.5 text-right font-semibold">${v.precio.toFixed(2)} Bs</td>
           </tr>
         `;

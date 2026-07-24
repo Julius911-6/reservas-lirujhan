@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" dir="ltr">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,25 +33,16 @@
     .asiento-card.bloqueado .asiento-num {
       background-color: #ef4444;
     }
-    /* Control estricto de dirección LTR para corregir bug de texto invertido en Android */
-    input.fix-input, input, td, th, span, p, div {
-      direction: ltr !important;
-      text-align: left;
-      unicode-bidi: isolate !important;
-    }
-    input.fix-input {
-      text-align: left !important;
-    }
   </style>
 </head>
-<body class="bg-gray-200 text-gray-800 font-sans p-2 sm:p-4 min-h-screen" dir="ltr">
+<body class="bg-gray-200 text-gray-800 font-sans p-2 sm:p-4 min-h-screen">
 
   <!-- ACCESO ADMINISTRADOR (MODAL / LOGIN) -->
   <div id="modal-login" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
     <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full text-center">
       <h2 class="text-xl font-bold mb-2 text-gray-900">🔒 Acceso Administrador</h2>
       <p class="text-xs text-gray-600 mb-4">Ingrese la clave para ver el Cierre Diario y exportar en PDF</p>
-      <input type="password" id="pin-input" dir="ltr" placeholder="Contraseña Admin" class="w-full border p-2 text-center text-lg rounded mb-4 focus:ring-2 focus:ring-yellow-500 outline-none">
+      <input type="password" id="pin-input" placeholder="Contraseña Admin" class="w-full border p-2 text-center text-lg rounded mb-4 focus:ring-2 focus:ring-yellow-500 outline-none">
       <button onclick="verificarPIN()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 rounded-lg transition">
         Ingresar al Panel
       </button>
@@ -86,19 +77,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" dir="ltr" value="Sabino" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input w-full border rounded p-1 font-semibold">
+            <input type="text" id="conductor" value="Sabino" autocomplete="off" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" dir="ltr" value="EL HERBIE" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input w-full border rounded p-1 font-semibold">
+            <input type="text" id="placa-bus" value="EL HERBIE" autocomplete="off" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
-            <input type="date" id="fecha-bus" dir="ltr" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
+            <input type="date" id="fecha-bus" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">HORA SALIDA:</label>
-            <input type="time" id="hora-bus" dir="ltr" value="16:00" class="w-full border rounded p-1 font-semibold">
+            <input type="time" id="hora-bus" value="16:00" class="w-full border rounded p-1 font-semibold">
           </div>
         </div>
       </div>
@@ -147,7 +138,7 @@
     </div>
 
     <!-- DOCUMENTO RESUMEN DE CUENTA DIARIO (PDF) -->
-    <div id="contenido-pdf" class="bg-white p-6 rounded-xl shadow-md border" dir="ltr">
+    <div id="contenido-pdf" class="bg-white p-6 rounded-xl shadow-md border">
       <div class="text-center border-b pb-4 mb-4">
         <h2 class="text-2xl font-black text-gray-900">TRANSPORTE "LIRUJHAN"</h2>
         <p class="text-sm font-bold text-gray-700">RESUMEN DE CUENTA DIARIO Y CIERRE DE CAJA</p>
@@ -222,7 +213,6 @@
 
     let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
 
-    // Función encargada de eliminar caracteres de dirección Unicode invertida
     function limpiarTextoLTR(texto) {
       if (!texto) return '';
       return String(texto)
@@ -231,13 +221,27 @@
         .toUpperCase();
     }
 
-    // Saneamiento de registros previos almacenados en localStorage
+    // Saneamiento y recuperación automática de registros corruptos
     function sanearHistorico() {
       let modificado = false;
+      
+      // Diccionario de fallos guardados en memoria por el bug del input
+      const reparacionDestinos = {
+        'OLLIBMAT': 'TAMBILLO',
+        'IVATAC': 'CATAVI',
+        'OZOP': 'POZO'
+      };
+
       for (const fecha in registroHistorico) {
         if (registroHistorico[fecha].ventas) {
           registroHistorico[fecha].ventas.forEach(v => {
-            const destLimpio = limpiarTextoLTR(v.destino);
+            let destLimpio = limpiarTextoLTR(v.destino);
+            
+            // Auto-arregla los destinos de la sesión dañada
+            if (reparacionDestinos[destLimpio]) {
+              destLimpio = reparacionDestinos[destLimpio];
+            }
+
             if (v.destino !== destLimpio) {
               v.destino = destLimpio;
               modificado = true;
@@ -288,10 +292,10 @@
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" dir="ltr" placeholder="Pasajero" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input admin-pasajero w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" placeholder="Pasajero" autocomplete="off" class="w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
             <div class="flex gap-1">
-              <input type="text" id="destino-${num}" dir="ltr" placeholder="Destino" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" class="fix-input admin-destino w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" dir="ltr" placeholder="Bs" autocomplete="off" class="fix-input admin-precio w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="text" id="destino-${num}" placeholder="Destino" autocomplete="off" class="w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
+              <input type="number" id="precio-${num}" placeholder="Bs" autocomplete="off" class="w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
@@ -438,9 +442,9 @@
       for (const [dest, info] of Object.entries(resumen)) {
         tbodyDestinos.innerHTML += `
           <tr class="border-b">
-            <td class="p-2 font-bold" dir="ltr">${dest}</td>
-            <td class="p-2 text-center" dir="ltr">${info.cant}</td>
-            <td class="p-2 text-right" dir="ltr">${info.total.toFixed(2)} Bs</td>
+            <td class="p-2 font-bold">${dest}</td>
+            <td class="p-2 text-center">${info.cant}</td>
+            <td class="p-2 text-right">${info.total.toFixed(2)} Bs</td>
           </tr>
         `;
       }
@@ -453,8 +457,8 @@
         totalOtros += item.monto;
         tbodyOtros.innerHTML += `
           <tr class="border-b">
-            <td class="p-2" dir="ltr">${limpiarTextoLTR(item.concepto)}</td>
-            <td class="p-2 text-right" dir="ltr">${item.monto.toFixed(2)} Bs</td>
+            <td class="p-2">${limpiarTextoLTR(item.concepto)}</td>
+            <td class="p-2 text-right">${item.monto.toFixed(2)} Bs</td>
           </tr>
         `;
       });
@@ -466,12 +470,12 @@
       datosDia.ventas.forEach((v, idx) => {
         tbodyPasajeros.innerHTML += `
           <tr class="border-b">
-            <td class="p-1.5 text-gray-500" dir="ltr">${idx + 1}</td>
-            <td class="p-1.5 font-semibold" dir="ltr">${limpiarTextoLTR(v.pasajero)}</td>
-            <td class="p-1.5" dir="ltr">Asiento ${v.asiento}</td>
-            <td class="p-1.5 font-bold" dir="ltr">${limpiarTextoLTR(v.destino)}</td>
-            <td class="p-1.5 text-gray-600" dir="ltr">${limpiarTextoLTR(v.placa)} (${v.hora})</td>
-            <td class="p-1.5 text-right font-semibold" dir="ltr">${v.precio.toFixed(2)} Bs</td>
+            <td class="p-1.5 text-gray-500">${idx + 1}</td>
+            <td class="p-1.5 font-semibold">${limpiarTextoLTR(v.pasajero)}</td>
+            <td class="p-1.5">Asiento ${v.asiento}</td>
+            <td class="p-1.5 font-bold">${limpiarTextoLTR(v.destino)}</td>
+            <td class="p-1.5 text-gray-600">${limpiarTextoLTR(v.placa)} (${v.hora})</td>
+            <td class="p-1.5 text-right font-semibold">${v.precio.toFixed(2)} Bs</td>
           </tr>
         `;
       });

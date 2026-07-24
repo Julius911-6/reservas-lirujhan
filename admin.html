@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>TRANSPORTE "LIRUJHAN" - Panel de Cierre Diario</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Librerías para exportar a PDF -->
@@ -42,7 +42,7 @@
     <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full text-center">
       <h2 class="text-xl font-bold mb-2 text-gray-900">🔒 Acceso Administrador</h2>
       <p class="text-xs text-gray-600 mb-4">Ingrese la clave para ver el Cierre Diario y exportar en PDF</p>
-      <input type="password" id="pin-input" placeholder="Contraseña Admin" class="w-full border p-2 text-center text-lg rounded mb-4 focus:ring-2 focus:ring-yellow-500 outline-none">
+      <input type="password" id="pin-input" name="pin-input" placeholder="Contraseña Admin" class="w-full border p-2 text-center text-lg rounded mb-4 focus:ring-2 focus:ring-yellow-500 outline-none">
       <button onclick="verificarPIN()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 rounded-lg transition">
         Ingresar al Panel
       </button>
@@ -77,19 +77,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div>
             <label class="block font-bold text-gray-700">NOMBRE DE CONDUCTOR:</label>
-            <input type="text" id="conductor" value="Sabino" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="conductor" name="conductor" value="Sabino" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">PLACA / VEHÍCULO:</label>
-            <input type="text" id="placa-bus" value="EL HERBIE" class="w-full border rounded p-1 font-semibold">
+            <input type="text" id="placa-bus" name="placa-bus" value="EL HERBIE" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">FECHA DEL VIAJE:</label>
-            <input type="date" id="fecha-bus" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
+            <input type="date" id="fecha-bus" name="fecha-bus" onchange="cargarDatosFechaSeleccionada()" class="w-full border rounded p-1 font-semibold">
           </div>
           <div>
             <label class="block font-bold text-gray-700">HORA SALIDA:</label>
-            <input type="time" id="hora-bus" value="16:00" class="w-full border rounded p-1 font-semibold">
+            <input type="time" id="hora-bus" name="hora-bus" value="16:00" class="w-full border rounded p-1 font-semibold">
           </div>
         </div>
       </div>
@@ -213,23 +213,21 @@
 
     let registroHistorico = JSON.parse(localStorage.getItem('lirujan_registro_historico')) || {};
 
-    // Función simplificada para evitar conflictos con el teclado de Android
     function limpiarTexto(texto) {
       if (!texto) return '';
       return String(texto).trim().toUpperCase();
     }
 
-    // Saneamiento y recuperación automática de registros corruptos
     function sanearHistorico() {
       let modificado = false;
       
-      // Diccionario de auto-reparación ampliado con los nuevos errores detectados
       const reparacionDestinos = {
         'OLLIBMAT': 'TAMBILLO',
         'IVATAC': 'CATAVI',
         'OZOP': 'POZO',
         'EBA BURP': 'PRUEBA',
-        'BA MABAHCOC': 'COCHABAMBA'
+        'BA MABAHCOC': 'COCHABAMBA',
+        'IA VILOB': 'BOLIVIA'
       };
 
       for (const fecha in registroHistorico) {
@@ -237,7 +235,6 @@
           registroHistorico[fecha].ventas.forEach(v => {
             let destLimpio = limpiarTexto(v.destino);
             
-            // Auto-arregla los destinos corruptos
             if (reparacionDestinos[destLimpio]) {
               destLimpio = reparacionDestinos[destLimpio];
             }
@@ -280,16 +277,16 @@
       return document.getElementById('hora-bus').value;
     }
 
-    // Se eliminó autocomplete="off" de los inputs para frenar el bug nativo de Android/Gboard
+    // Se reemplazó flex por un grid de tamaños fijos para evitar que Android reajuste el input y corte el cursor
     function crearHtmlAsiento(num) {
       return `
         <div id="card-asiento-${num}" class="asiento-card p-2 shadow-sm">
           <span class="asiento-num">${num}</span>
           <div class="mt-2 space-y-1">
-            <input type="text" id="pasajero-${num}" placeholder="Pasajero" class="w-full border text-xs p-1 rounded font-semibold" data-asiento="${num}">
-            <div class="flex gap-1">
-              <input type="text" id="destino-${num}" placeholder="Destino" class="w-full border text-xs p-1 rounded font-bold" data-asiento="${num}">
-              <input type="number" id="precio-${num}" placeholder="Bs" class="w-16 border text-xs p-1 rounded font-bold" data-asiento="${num}">
+            <input type="text" id="pasajero-${num}" name="pasajero-${num}" placeholder="Pasajero" class="w-full border text-xs p-1 rounded font-semibold bg-white" data-asiento="${num}">
+            <div class="grid grid-cols-3 gap-1">
+              <input type="text" id="destino-${num}" name="destino-${num}" placeholder="Destino" class="col-span-2 w-full border text-xs p-1 rounded font-bold bg-white" data-asiento="${num}">
+              <input type="number" id="precio-${num}" name="precio-${num}" placeholder="Bs" class="col-span-1 w-full border text-xs p-1 rounded font-bold bg-white" data-asiento="${num}">
             </div>
           </div>
           <div id="btn-editar-container-${num}" class="mt-1 text-center hidden">
